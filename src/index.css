@@ -25,9 +25,10 @@
   --color-glass: rgba(255, 255, 255, 0.75);
   --color-glass-border: rgba(0, 0, 0, 0.06);
   
-  /* Orb colors for light mode - noticeable but soft */
-  --orb-1-color: rgba(184, 0, 31, 0.18);
-  --orb-2-color: rgba(251, 112, 141, 0.16);
+  /* Orb colors for light mode - bold and visible */
+  --orb-plum: rgba(60, 20, 50, 0.35);      /* Large, deep plum for depth */
+  --orb-red: rgba(184, 0, 31, 0.30);        /* Medium, brand presence */
+  --orb-pink: rgba(251, 112, 141, 0.25);    /* Small, accent energy */
   
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -51,9 +52,10 @@
   --color-glass: rgba(20, 24, 38, 0.8);
   --color-glass-border: rgba(255, 255, 255, 0.08);
   
-  /* Orb colors for dark mode - more visible with saturation boost */
-  --orb-1-color: rgba(200, 20, 50, 0.22);
-  --orb-2-color: rgba(255, 120, 150, 0.18);
+  /* Orb colors for dark mode - layered depth, more visible */
+  --orb-plum: rgba(80, 30, 70, 0.25);       /* Large, deep plum for depth */
+  --orb-red: rgba(184, 0, 31, 0.18);         /* Medium, brand presence */
+  --orb-pink: rgba(255, 130, 160, 0.12);     /* Small, accent energy */
   
   /* Shadows - dark */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -84,69 +86,117 @@
   );
 }
 
-/* Floating orbs - ambient glow effect */
+/* Large ambient orbs - depth & brand presence */
 .animated-bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(180px);
   will-change: transform, opacity;
 }
 
-/* Orb 1 - Top right corner, primary red */
-.orb-1 {
-  width: 900px;
-  height: 900px;
-  background: var(--orb-1-color);
-  top: -20%;
-  right: -20%;
-  animation: orb-breathe-1 35s ease-in-out infinite;
+.orb-plum {
+  width: 1000px;
+  height: 1000px;
+  background: var(--orb-plum);
+  filter: blur(200px);
+  top: -15%;
+  right: -25%;
+  animation: orb-drift-slow 45s ease-in-out infinite;
 }
 
-/* Orb 2 - Bottom left corner, pink accent */
-.orb-2 {
-  width: 850px;
-  height: 850px;
-  background: var(--orb-2-color);
-  bottom: -25%;
-  left: -20%;
-  animation: orb-breathe-2 40s ease-in-out infinite;
+.orb-red {
+  width: 700px;
+  height: 700px;
+  background: var(--orb-red);
+  filter: blur(150px);
+  bottom: -20%;
+  left: -15%;
+  animation: orb-drift-medium 35s ease-in-out infinite;
 }
 
+.orb-pink {
+  width: 500px;
+  height: 500px;
+  background: var(--orb-pink);
+  filter: blur(120px);
+  top: 60%;
+  right: -10%;
+  animation: orb-drift-fast 28s ease-in-out infinite;
+}
 
-/* Orb animations - slow breathing in corners */
-@keyframes orb-breathe-1 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
+@keyframes orb-drift-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-60px, 80px) scale(1.08); }
+}
+
+@keyframes orb-drift-medium {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(80px, -60px) scale(1.1); }
+}
+
+@keyframes orb-drift-fast {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+  50% { transform: translate(-100px, -80px) scale(1.15); opacity: 0.8; }
+}
+
+/* Scattered gradient blobs - small organic shapes */
+.gradient-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.6;
+  will-change: transform, opacity;
+  animation: blob-float 8s ease-in-out infinite alternate;
+  
+  /* Light mode gradient */
+  background: radial-gradient(
+    ellipse at 30% 30%,
+    var(--light-color-1) 0%,
+    var(--light-color-2) 50%,
+    transparent 70%
+  );
+}
+
+.dark .gradient-blob {
+  opacity: 0.5;
+  filter: blur(45px);
+  
+  /* Dark mode gradient */
+  background: radial-gradient(
+    ellipse at 30% 30%,
+    var(--dark-color-1) 0%,
+    var(--dark-color-2) 50%,
+    transparent 70%
+  );
+}
+
+/* Blob float animation */
+@keyframes blob-float {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
   }
-  50% {
-    transform: translate(-80px, 100px) scale(1.1);
-    opacity: 0.85;
+  33% {
+    transform: translate(15px, -20px) scale(1.1) rotate(5deg);
+  }
+  66% {
+    transform: translate(-10px, 15px) scale(0.95) rotate(-3deg);
+  }
+  100% {
+    transform: translate(20px, 10px) scale(1.05) rotate(8deg);
   }
 }
 
-@keyframes orb-breathe-2 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: translate(100px, -80px) scale(1.1);
-    opacity: 0.85;
-  }
-}
-
-/* Film grain overlay */
+/* Film grain overlay - adds texture like the reference */
 .animated-bg-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.03;
+  opacity: 0.08;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
 .dark .animated-bg-grain {
-  opacity: 0.04;
+  opacity: 0.06;
 }
 
 /* Respect reduced motion */
@@ -183,13 +233,47 @@ body {
    COMPONENT STYLES
    ============================================ */
 
-/* Glass Panel Effect */
+/* Glass Panel Effect - Premium frosted glass */
 .glass {
   background: var(--color-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--color-glass-border);
-  transition: background 0.3s ease, border-color 0.3s ease;
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.glass:hover {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Glass card variant - for selectors and panels */
+.glass-card {
+  background: var(--color-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 16px;
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glass subtle - lighter effect for nested elements */
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-subtle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Primary Button */
