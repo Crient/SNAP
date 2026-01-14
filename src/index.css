@@ -1,0 +1,392 @@
+@import "tailwindcss";
+
+/* ============================================
+   DESIGN TOKENS - SNAP Color System
+   ============================================ */
+
+:root {
+  /* Brand Colors - Same in both modes */
+  --color-brand-primary: #B8001F;
+  --color-brand-secondary: #FB708D;
+  --color-brand-primary-hover: #9a001a;
+  
+  /* Light Mode Colors - almost white, clean base */
+  --color-bg: #FAFAFA;
+  --color-bg-start: #FAFAFA;
+  --color-bg-end: #FFF8F9;
+  --color-surface: #F8F9FA;
+  --color-surface-elevated: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  
+  /* Glass effect */
+  --color-glass: rgba(255, 255, 255, 0.75);
+  --color-glass-border: rgba(0, 0, 0, 0.06);
+  
+  /* Orb colors for light mode - noticeable but soft */
+  --orb-1-color: rgba(184, 0, 31, 0.18);
+  --orb-2-color: rgba(251, 112, 141, 0.16);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  /* Dark Mode Colors */
+  --color-bg: #0B0E14;
+  --color-bg-start: #0B0E14;
+  --color-bg-end: #0F1218;
+  --color-surface: #141826;
+  --color-surface-elevated: #1A1F2E;
+  --color-border: #1F2437;
+  --color-text-primary: #F5F7FA;
+  --color-text-secondary: #9CA3AF;
+  --color-text-muted: #6B7280;
+  
+  /* Glass effect - dark */
+  --color-glass: rgba(20, 24, 38, 0.8);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  
+  /* Orb colors for dark mode - more visible with saturation boost */
+  --orb-1-color: rgba(200, 20, 50, 0.22);
+  --orb-2-color: rgba(255, 120, 150, 0.18);
+  
+  /* Shadows - dark */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   ANIMATED BACKGROUND
+   ============================================ */
+
+.animated-bg-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Base gradient */
+.animated-bg-base {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    var(--color-bg-start) 0%,
+    var(--color-bg-end) 100%
+  );
+}
+
+/* Floating orbs - ambient glow effect */
+.animated-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(180px);
+  will-change: transform, opacity;
+}
+
+/* Orb 1 - Top right corner, primary red */
+.orb-1 {
+  width: 900px;
+  height: 900px;
+  background: var(--orb-1-color);
+  top: -20%;
+  right: -20%;
+  animation: orb-breathe-1 35s ease-in-out infinite;
+}
+
+/* Orb 2 - Bottom left corner, pink accent */
+.orb-2 {
+  width: 850px;
+  height: 850px;
+  background: var(--orb-2-color);
+  bottom: -25%;
+  left: -20%;
+  animation: orb-breathe-2 40s ease-in-out infinite;
+}
+
+
+/* Orb animations - slow breathing in corners */
+@keyframes orb-breathe-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-80px, 100px) scale(1.1);
+    opacity: 0.85;
+  }
+}
+
+@keyframes orb-breathe-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(100px, -80px) scale(1.1);
+    opacity: 0.85;
+  }
+}
+
+/* Film grain overlay */
+.animated-bg-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+.dark .animated-bg-grain {
+  opacity: 0.04;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animated-bg-orb {
+    animation: none !important;
+  }
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Outfit', sans-serif;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
+/* Glass Panel Effect */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-glass-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* Primary Button */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-secondary) 100%);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px rgba(184, 0, 31, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Text colors */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-brand {
+  color: var(--color-brand-primary);
+}
+
+/* Background colors */
+.bg-surface {
+  background-color: var(--color-surface);
+}
+
+.bg-elevated {
+  background-color: var(--color-surface-elevated);
+}
+
+/* Border color */
+.border-subtle {
+  border-color: var(--color-border);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+/* Floating Animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Pulse Glow Animation */
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(184, 0, 31, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 40px rgba(184, 0, 31, 0.6), 0 0 60px rgba(251, 112, 141, 0.3);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Scale In Animation */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.scale-in {
+  animation: scale-in 0.5s ease-out forwards;
+}
+
+/* Fade Up Animation */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+/* Staggered delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ============================================
+   CAMERA STYLES
+   ============================================ */
+
+/* Camera Preview Mirror */
+.camera-mirror {
+  transform: scaleX(-1);
+}
+
+/* Ring Light - STRONG version */
+.ring-light-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ring-light-warm {
+  background: 
+    radial-gradient(ellipse at center, 
+      transparent 0%,
+      transparent 15%,
+      rgba(255, 200, 120, 0.15) 30%,
+      rgba(255, 180, 100, 0.4) 50%,
+      rgba(255, 160, 80, 0.7) 70%,
+      rgba(255, 140, 60, 0.9) 85%,
+      rgba(255, 120, 40, 1) 100%
+    );
+}
+
+.ring-light-neutral {
+  background: 
+    radial-gradient(ellipse at center, 
+      transparent 0%,
+      transparent 15%,
+      rgba(255, 255, 255, 0.2) 30%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0.75) 70%,
+      rgba(255, 255, 255, 0.9) 85%,
+      rgba(255, 255, 255, 1) 100%
+    );
+}
+
+.ring-light-cool {
+  background: 
+    radial-gradient(ellipse at center, 
+      transparent 0%,
+      transparent 15%,
+      rgba(200, 220, 255, 0.15) 30%,
+      rgba(180, 210, 255, 0.4) 50%,
+      rgba(160, 200, 255, 0.7) 70%,
+      rgba(140, 190, 255, 0.9) 85%,
+      rgba(120, 180, 255, 1) 100%
+    );
+}
+
+/* Exposure boost when ring light is on */
+.ring-light-boost {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
