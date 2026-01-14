@@ -53,13 +53,13 @@ const LAYOUTS = [
   },
   {
     id: 'grid-3x1',
-    name: '3 Photos',
-    description: 'Triple shot layout',
-    icon: '▥',
+    name: '3×1 Grid',
+    description: '3 photos',
+    icon: '☰',
     shots: 3,
     allowedOrientations: ['vertical', 'horizontal'],
     gridByOrientation: {
-      vertical: { rows: 3, cols: 1, captionSpace: true },
+      vertical: { rows: 3, cols: 1 },
       horizontal: { rows: 1, cols: 3 },
     },
     // Camera aspect ratio is INVERTED for this layout
@@ -72,7 +72,7 @@ const LAYOUTS = [
     id: 'grid-3x2',
     name: '3×2 Grid',
     description: '6 photos',
-    icon: '⊟',
+    icon: '▦',
     shots: 6,
     allowedOrientations: ['vertical', 'horizontal'],
     gridByOrientation: {

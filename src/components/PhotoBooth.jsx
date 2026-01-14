@@ -200,16 +200,16 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
         <div className="glass rounded-3xl p-8 max-w-md text-center">
           <div className="text-6xl mb-4">😢</div>
           <h2 className="text-2xl font-bold mb-3">Camera Access Denied</h2>
-          <p className="text-secondary mb-6">{error}</p>
+          <p className="text-[var(--color-text-secondary)] font-medium mb-6">{error}</p>
           <button
             onClick={() => startCamera()}
-            className="px-6 py-3 rounded-xl bg-[#B8001F]/10 hover:bg-[#B8001F]/20 text-[#B8001F] transition-colors mr-3"
+            className="px-6 py-3 rounded-xl bg-[#B8001F]/10 hover:bg-[#B8001F]/20 text-[#B8001F] transition-colors mr-3 font-semibold"
           >
             Try Again
           </button>
           <button
             onClick={onBack}
-            className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors"
+            className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors font-semibold"
           >
             Go Back
           </button>
@@ -224,7 +224,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
         <div className="text-center">
           <div className="text-6xl mb-4 animate-bounce">📷</div>
-          <p className="text-secondary">Starting camera...</p>
+          <p className="text-[var(--color-text-secondary)] font-semibold">Starting camera...</p>
         </div>
       </div>
     )
@@ -236,14 +236,14 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
       return {
         aspectRatio: '16/9',
         width: '100%',
-        maxWidth: '900px',  // Much larger
+        maxWidth: '900px',
         maxHeight: '70vh',
       }
     } else {
       return {
         aspectRatio: '9/16',
         width: '100%',
-        maxWidth: '450px',  // Larger for vertical
+        maxWidth: '450px',
         maxHeight: '80vh',
       }
     }
@@ -251,14 +251,14 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6">
-      {/* Minimal Header */}
+      {/* Minimal Header - Manrope 700 for title */}
       <div className="text-center mb-4 fade-up">
-        <h2 className="font-['Syne'] text-xl md:text-2xl font-bold mb-1">
+        <h2 className="text-xl md:text-2xl font-bold mb-1">
           {captureState === CAPTURE_STATES.READY && 'Get Ready!'}
           {captureState === CAPTURE_STATES.COUNTDOWN && `Photo ${currentPhotoIndex + 1} of ${totalPhotos}`}
           {captureState === CAPTURE_STATES.COMPLETE && 'All Done! 🎉'}
         </h2>
-        <p className="text-secondary text-sm">
+        <p className="text-[var(--color-text-secondary)] text-sm font-medium">
           {layout?.name} • {orientation?.name}
         </p>
       </div>
@@ -296,7 +296,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
           {captureState === CAPTURE_STATES.COUNTDOWN && countdown > 0 && (
             <div className="absolute inset-0 flex items-center justify-center z-15">
               <div 
-                className="text-[120px] md:text-[180px] font-bold text-white scale-in"
+                className="text-[120px] md:text-[180px] font-extrabold text-white scale-in"
                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
                 key={countdown}
               >
@@ -345,7 +345,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
         <div className="glass rounded-full px-4 py-2 flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-lg">💡</span>
-            <span className="text-sm font-medium">Light</span>
+            <span className="text-sm font-semibold">Light</span>
           </div>
           
           <button
@@ -390,13 +390,13 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
             <>
               <button
                 onClick={onBack}
-                className="px-5 py-2.5 rounded-xl glass text-secondary hover:text-primary transition-colors"
+                className="px-5 py-2.5 rounded-xl glass text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors font-semibold"
               >
                 ← Back
               </button>
               <button
                 onClick={startCapture}
-                className="px-8 py-3 rounded-xl btn-primary text-white font-semibold text-lg pulse-glow"
+                className="px-8 py-3 rounded-xl btn-primary text-white font-bold text-lg pulse-glow"
               >
                 📸 Capture
               </button>
@@ -410,7 +410,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
                 setCapturedPhotos([])
                 setCurrentPhotoIndex(0)
               }}
-              className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors"
+              className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors font-semibold"
             >
               Cancel
             </button>

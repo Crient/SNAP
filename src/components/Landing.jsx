@@ -18,7 +18,7 @@ function Landing({ onStart }) {
           <div className="absolute -inset-4 bg-[#B8001F]/10 rounded-full blur-2xl -z-10" />
         </div>
 
-        {/* Title */}
+        {/* Title - SNAP stays Syne */}
         <h1 
           className="font-['Syne'] text-6xl md:text-8xl font-extrabold tracking-tight mb-4"
           style={{ 
@@ -31,21 +31,21 @@ function Landing({ onStart }) {
           SNAP
         </h1>
 
-        {/* Tagline */}
+        {/* Tagline - Manrope 600 for main, 700 for emphasis */}
         <p 
-          className={`text-lg md:text-xl text-secondary max-w-md mx-auto ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+          className={`text-lg md:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
         >
           Your digital photo booth experience.
           <br />
-          <span className="text-[#B8001F]">Capture moments, create memories.</span>
+          <span className="font-bold text-[#B8001F]">Capture moments, create memories.</span>
         </p>
       </div>
 
-      {/* Start Button */}
+      {/* Start Button - Manrope 700 */}
       <div className={`${isLoaded ? 'fade-up delay-300' : 'opacity-0'}`}>
         <button
           onClick={onStart}
-          className="group relative px-12 py-5 rounded-2xl btn-primary text-white font-semibold text-xl 
+          className="group relative px-12 py-5 rounded-2xl btn-primary text-white font-bold text-xl 
                      shadow-lg overflow-hidden"
         >
           {/* Button Shine Effect */}
@@ -60,13 +60,13 @@ function Landing({ onStart }) {
               viewBox="0 0 24 24" 
               stroke="currentColor"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </span>
         </button>
       </div>
 
-      {/* Features Preview */}
+      {/* Features Preview - Manrope 600 */}
       <div className={`mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}>
         {[
           { icon: '🎨', label: 'Fun Layouts' },
@@ -80,13 +80,13 @@ function Landing({ onStart }) {
             style={{ animationDelay: `${400 + i * 100}ms` }}
           >
             <div className="text-3xl mb-2">{feature.icon}</div>
-            <div className="text-sm text-secondary">{feature.label}</div>
+            <div className="text-sm font-semibold text-[var(--color-text-secondary)]">{feature.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Footer Note */}
-      <p className={`mt-12 text-sm text-muted ${isLoaded ? 'fade-up delay-500' : 'opacity-0'}`}>
+      {/* Footer Note - Manrope 400 */}
+      <p className={`mt-12 text-sm font-normal text-[var(--color-text-muted)] ${isLoaded ? 'fade-up delay-500' : 'opacity-0'}`}>
         Works entirely in your browser • No uploads • Your photos stay private
       </p>
     </div>

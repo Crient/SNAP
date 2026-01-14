@@ -240,7 +240,7 @@ function Editor({ image, onComplete, onReset }) {
         ctx.textBaseline = 'middle'
         ctx.fillText(overlay.content, 0, 0)
       } else if (overlay.type === 'text') {
-        ctx.font = 'bold 48px Outfit, sans-serif'
+        ctx.font = 'bold 48px Manrope, sans-serif'
         ctx.fillStyle = overlay.color
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
@@ -295,7 +295,7 @@ function Editor({ image, onComplete, onReset }) {
       {/* Preview Area */}
       <div className={`flex-1 max-w-2xl ${isLoaded ? 'scale-in' : 'opacity-0'}`}>
         <div className="text-center mb-4">
-          <h2 className="font-['Syne'] text-2xl md:text-3xl font-bold">
+          <h2 className="text-2xl md:text-3xl font-bold">
             Customize ✨
           </h2>
         </div>
@@ -368,7 +368,7 @@ function Editor({ image, onComplete, onReset }) {
           <div className="mt-4 glass rounded-xl p-4 fade-up">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-secondary">Size</span>
+                <span className="text-sm text-[var(--color-text-secondary)] font-medium">Size</span>
                 <input
                   type="range"
                   min="0.5"
@@ -380,7 +380,7 @@ function Editor({ image, onComplete, onReset }) {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-secondary">Rotate</span>
+                <span className="text-sm text-[var(--color-text-secondary)] font-medium">Rotate</span>
                 <input
                   type="range"
                   min="-180"
@@ -393,7 +393,7 @@ function Editor({ image, onComplete, onReset }) {
               </div>
               {selected.type === 'text' && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-secondary">Color</span>
+                  <span className="text-sm text-[var(--color-text-secondary)] font-medium">Color</span>
                   <input
                     type="color"
                     value={selected.color}
@@ -404,7 +404,7 @@ function Editor({ image, onComplete, onReset }) {
               )}
               <button
                 onClick={deleteSelected}
-                className="ml-auto px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors text-sm"
+                className="ml-auto px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors text-sm font-semibold"
               >
                 🗑️ Delete
               </button>
@@ -416,7 +416,7 @@ function Editor({ image, onComplete, onReset }) {
       {/* Tools Panel */}
       <div className={`w-full lg:w-72 ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}>
         <div className="glass rounded-2xl p-4">
-          {/* Tabs */}
+          {/* Tabs - Manrope 600 */}
           <div className="flex gap-1 mb-4">
             {[
               { id: TABS.BORDER, icon: '🖼️', label: 'Border' },
@@ -426,10 +426,10 @@ function Editor({ image, onComplete, onReset }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-colors ${
                   activeTab === tab.id 
                     ? 'bg-[#B8001F]/10 text-[#B8001F]' 
-                    : 'text-secondary hover:text-primary hover:bg-[var(--color-surface)]'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]'
                 }`}
               >
                 {tab.icon} {tab.label}
@@ -461,14 +461,14 @@ function Editor({ image, onComplete, onReset }) {
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Type your text..."
                 className="w-full px-4 py-3 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]
-                           focus:outline-none focus:border-[#B8001F] transition-colors"
+                           focus:outline-none focus:border-[#B8001F] transition-colors font-medium"
                 onKeyDown={(e) => e.key === 'Enter' && addText()}
               />
               <button
                 onClick={addText}
                 disabled={!textInput.trim()}
                 className="w-full py-3 rounded-lg bg-[#B8001F]/10 text-[#B8001F] hover:bg-[#B8001F]/20 
-                           transition-colors disabled:opacity-50 font-medium"
+                           transition-colors disabled:opacity-50 font-bold"
               >
                 Add Text
               </button>
@@ -493,24 +493,24 @@ function Editor({ image, onComplete, onReset }) {
                   >
                     <div className="w-[65%] h-[65%] mx-auto mt-[17.5%] bg-gradient-to-br from-[#B8001F]/30 to-[#FB708D]/30 rounded-sm" />
                   </div>
-                  <span className="text-[10px] font-medium">{theme.name}</span>
+                  <span className="text-[10px] font-semibold">{theme.name}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions - Manrope 700 for primary button */}
         <div className="mt-4 space-y-2">
           <button
             onClick={exportImage}
-            className="w-full py-4 rounded-xl btn-primary text-white font-semibold text-lg"
+            className="w-full py-4 rounded-xl btn-primary text-white font-bold text-lg"
           >
             📥 Download
           </button>
           <button
             onClick={onReset}
-            className="w-full py-3 rounded-xl glass text-secondary hover:text-primary transition-colors"
+            className="w-full py-3 rounded-xl glass text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors font-semibold"
           >
             🔄 Start Over
           </button>

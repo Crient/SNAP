@@ -85,9 +85,9 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
         ctx.restore()
       })
 
-      // Branding
+      // Branding - Use Manrope
       ctx.fillStyle = '#9CA3AF'
-      ctx.font = `500 ${Math.round(canvasWidth * 0.014)}px 'Outfit', sans-serif`
+      ctx.font = `600 ${Math.round(canvasWidth * 0.014)}px 'Manrope', sans-serif`
       ctx.textAlign = 'center'
       ctx.fillText('SNAP', canvasWidth / 2, canvasHeight - 12)
 
@@ -139,12 +139,12 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      {/* Header */}
+      {/* Header - Manrope 700 for title */}
       <div className={`text-center mb-6 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
-        <h2 className="font-['Syne'] text-3xl md:text-4xl font-bold mb-2">
+        <h2 className="text-3xl md:text-4xl font-bold mb-2">
           Preview ✨
         </h2>
-        <p className="text-secondary">
+        <p className="text-[var(--color-text-secondary)] font-semibold">
           {layout?.name} • {orientation?.name}
         </p>
       </div>
@@ -172,7 +172,7 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
             >
               <div className="text-center">
                 <div className="text-4xl animate-spin mb-3">⚙️</div>
-                <p className="text-secondary">Composing...</p>
+                <p className="text-[var(--color-text-secondary)] font-medium">Composing...</p>
               </div>
             </div>
           )}
@@ -182,18 +182,18 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
       {/* Hidden Canvas */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Actions */}
+      {/* Actions - Manrope 700 for primary button */}
       <div className={`mt-8 flex flex-col sm:flex-row items-center gap-4 ${isLoaded ? 'fade-up delay-300' : 'opacity-0'}`}>
         <button
           onClick={onRetake}
-          className="px-6 py-3 rounded-xl glass text-secondary hover:text-primary transition-colors"
+          className="px-6 py-3 rounded-xl glass text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors font-semibold"
         >
           ↩ Retake
         </button>
         <button
           onClick={handleConfirm}
           disabled={!composedImage}
-          className="px-8 py-4 rounded-xl btn-primary text-white font-semibold text-lg 
+          className="px-8 py-4 rounded-xl btn-primary text-white font-bold text-lg 
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Edit & Export →

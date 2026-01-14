@@ -1,5 +1,36 @@
 import { useState, useEffect } from 'react'
 
+// Grid icons - clean, minimal style
+const GridIcon = ({ rows, cols, size = 28 }) => {
+  const gap = 3
+  const cellWidth = (size - gap * (cols - 1)) / cols
+  const cellHeight = (size - gap * (rows - 1)) / rows
+  
+  const cells = []
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      cells.push(
+        <rect
+          key={`${r}-${c}`}
+          x={c * (cellWidth + gap)}
+          y={r * (cellHeight + gap)}
+          width={cellWidth}
+          height={cellHeight}
+          rx={2.5}
+          fill="currentColor"
+          opacity={0.85}
+        />
+      )
+    }
+  }
+  
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="inline-block">
+      {cells}
+    </svg>
+  )
+}
+
 function LayoutSelector({ layouts, onSelect, onBack }) {
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -7,6 +38,12 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
     const timer = setTimeout(() => setIsLoaded(true), 100)
     return () => clearTimeout(timer)
   }, [])
+
+  // Get grid config for icon
+  const getIconGrid = (layout) => {
+    const grid = layout.gridByOrientation?.vertical || layout.grid
+    return { rows: grid.rows, cols: grid.cols }
+  }
 
   // Visual preview of each layout
   const renderLayoutPreview = (layout) => {
@@ -16,93 +53,112 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
       display: 'grid',
       gridTemplateColumns: `repeat(${grid.cols}, 1fr)`,
       gridTemplateRows: `repeat(${grid.rows}, 1fr)`,
-      gap: '3px',
+      gap: '5px',
     }
 
     const cells = Array(layout.shots).fill(null)
 
     return (
-      <div className="w-full aspect-[3/4] bg-[var(--color-surface)] rounded-lg p-2 flex flex-col">
-        <div className="flex-1" style={gridStyle}>
-          {cells.map((_, i) => (
-            <div 
-              key={i}
-              className="bg-gradient-to-br from-[#B8001F]/30 to-[#FB708D]/30 rounded-sm"
-            />
-          ))}
-        </div>
-        {grid.captionSpace && (
-          <div className="h-4 mt-1 bg-[var(--color-border)] rounded-sm flex items-center justify-center">
-            <span className="text-[8px] text-muted">caption</span>
+      <div 
+        className="w-full aspect-[3/4] rounded-2xl 
+                   bg-gradient-to-br from-white/50 to-white/30 
+                   dark:from-white/[0.1] dark:to-white/[0.05]
+                   ring-1 ring-black/[0.04] dark:ring-white/[0.1]
+                   shadow-inner"
+        style={{ padding: '12px' }}
+      >
+        <div className="w-full h-full flex flex-col">
+          <div className="flex-1" style={gridStyle}>
+            {cells.map((_, i) => (
+              <div 
+                key={i}
+                className="bg-gradient-to-br from-[#B8001F]/35 to-[#FB708D]/35 
+                           dark:from-[#B8001F]/40 dark:to-[#FB708D]/40
+                           rounded-lg shadow-sm"
+              />
+            ))}
           </div>
-        )}
+        </div>
       </div>
     )
   }
 
-  const getOrientationInfo = (layout) => {
-    if (layout.allowedOrientations.length === 2) {
-      return { text: 'Both orientations', color: 'bg-green-500/20 text-green-600 dark:text-green-400' }
-    } else if (layout.allowedOrientations.includes('horizontal')) {
-      return { text: 'Horizontal only', color: 'bg-orange-500/20 text-orange-600 dark:text-orange-400' }
-    } else {
-      return { text: 'Vertical only', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' }
-    }
-  }
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-      {/* Header */}
-      <div className={`text-center mb-10 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
-        <h2 className="font-['Syne'] text-4xl md:text-5xl font-bold mb-3">
+      {/* Header - Manrope 700 for title, 600 for subtitle */}
+      <div className={`text-center mb-12 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
+        <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
           Choose Your Layout
         </h2>
-        <p className="text-secondary">
+        <p className="text-[var(--color-text-secondary)] text-lg font-semibold">
           Pick how your photos will be arranged
         </p>
       </div>
 
       {/* Layout Options */}
-      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl w-full ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}>
-        {layouts.map((layout, index) => {
-          const orientationInfo = getOrientationInfo(layout)
-          
-          return (
-            <button
-              key={layout.id}
-              onClick={() => onSelect(layout)}
-              className="group glass rounded-2xl p-5 hover:bg-[var(--color-surface)] transition-all duration-300 
-                         hover:scale-[1.02] hover:shadow-lg"
-              style={{ animationDelay: `${200 + index * 80}ms` }}
-            >
+      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl w-full ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}>
+        {layouts.map((layout, index) => (
+          <button
+            key={layout.id}
+            onClick={() => onSelect(layout)}
+            className="group relative text-center p-5 rounded-3xl
+                       bg-white/40 dark:bg-white/[0.08]
+                       backdrop-blur-xl backdrop-saturate-150
+                       border border-white/50 dark:border-white/10
+                       shadow-[0_4px_30px_rgba(0,0,0,0.05)]
+                       hover:scale-[1.02] hover:-translate-y-1
+                       hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)]
+                       hover:bg-white/50 dark:hover:bg-white/[0.12]
+                       active:scale-[0.98]
+                       transition-all duration-300 ease-out"
+            style={{ animationDelay: `${200 + index * 100}ms` }}
+          >
+            {/* Sheen overlay */}
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/0 to-transparent dark:from-white/20 dark:via-transparent" />
+            </div>
+            
+            {/* Content */}
+            <div className="relative z-10 flex flex-col h-full">
               {/* Layout Preview */}
-              <div className="mb-3 group-hover:scale-95 transition-transform duration-300">
+              <div>
                 {renderLayoutPreview(layout)}
               </div>
 
-              {/* Layout Info */}
-              <div className="text-2xl mb-1">{layout.icon}</div>
-              <h3 className="font-semibold text-base mb-0.5">{layout.name}</h3>
-              <p className="text-xs text-secondary mb-2">{layout.shots} photos</p>
-              
-              {/* Orientation Badge */}
-              <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full ${orientationInfo.color}`}>
-                {orientationInfo.text}
-              </span>
-            </button>
-          )
-        })}
+              {/* Footer - Icon, Title, Photo count */}
+              <div className="pt-5 pb-3 flex flex-col items-center justify-center gap-2.5">
+                {/* Icon + Name row - Manrope 700 for card title */}
+                <div className="flex items-center justify-center gap-2.5">
+                  <span className="text-[var(--color-text-primary)] opacity-60">
+                    <GridIcon {...getIconGrid(layout)} size={20} />
+                  </span>
+                  <h3 className="font-bold text-base tracking-tight">{layout.name}</h3>
+                </div>
+                
+                {/* Photo count - Manrope 600 */}
+                <span className="text-sm font-semibold text-[var(--color-brand-primary)]">
+                  {layout.shots} photos
+                </span>
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* Back Button */}
+      {/* Back Button - Manrope 600 */}
       <button
         onClick={onBack}
-        className={`mt-10 flex items-center gap-2 text-secondary hover:text-primary transition-colors ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
+        className={`mt-12 flex items-center gap-2 px-5 py-2.5 rounded-full
+                    text-[var(--color-text-secondary)] font-semibold
+                    hover:text-[var(--color-brand-primary)]
+                    hover:bg-[var(--color-brand-primary)]/10
+                    transition-all duration-200
+                    ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back
+        <span>Back</span>
       </button>
     </div>
   )

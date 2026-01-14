@@ -51,12 +51,12 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-      {/* Header */}
+      {/* Header - Manrope 700 for title, 600 for subtitle */}
       <div className={`text-center mb-10 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
-        <h2 className="font-['Syne'] text-4xl md:text-5xl font-bold mb-3">
+        <h2 className="text-4xl md:text-5xl font-bold mb-3">
           Choose Orientation
         </h2>
-        <p className="text-secondary">
+        <p className="text-[var(--color-text-secondary)] font-semibold">
           {selectedLayout.name} • {selectedLayout.shots} photos
         </p>
       </div>
@@ -79,12 +79,12 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
                 {renderOrientationPreview(orientation)}
               </div>
 
-              {/* Orientation Info */}
+              {/* Orientation Info - Manrope 700 for name, 600 for description */}
               <div className="text-3xl mb-2">{orientation.icon}</div>
-              <h3 className="font-semibold text-lg mb-1">{orientation.name}</h3>
-              <p className="text-sm text-secondary">{orientation.description}</p>
+              <h3 className="font-bold text-lg mb-1">{orientation.name}</h3>
+              <p className="text-sm text-[var(--color-text-secondary)] font-medium">{orientation.description}</p>
               
-              <span className="inline-block mt-2 text-xs bg-[var(--color-surface)] px-2 py-1 rounded-full text-muted">
+              <span className="inline-block mt-2 text-xs bg-[var(--color-surface)] px-2 py-1 rounded-full text-[var(--color-text-muted)] font-medium">
                 {grid.cols} × {grid.rows} grid
               </span>
             </button>
@@ -92,13 +92,13 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
         })}
       </div>
 
-      {/* Back Button */}
+      {/* Back Button - Manrope 600 */}
       <button
         onClick={onBack}
-        className={`mt-10 flex items-center gap-2 text-secondary hover:text-primary transition-colors ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
+        className={`mt-10 flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)] transition-colors font-semibold ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
         Back to Layouts
       </button>
