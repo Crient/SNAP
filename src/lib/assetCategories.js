@@ -147,3 +147,8 @@ export function getPatternsByCategory(category) {
 export function getPatternPath(num) {
   return `/assets/backgrounds/patterns/bgp_${String(num).padStart(3, '0')}.png`;
 }
+
+// Generate pattern thumbnail paths (WebP, 256-384px)
+export function getPatternThumbPath(num) {
+  return `/assets/backgrounds/patterns/thumbs/bgp_${String(num).padStart(3, '0')}.webp`;
+}

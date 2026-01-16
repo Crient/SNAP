@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { getGridConfig } from '../App'
+import Moveable from 'react-moveable'
 import {
   ELEMENT_CATEGORIES,
   SCENE_CATEGORIES,
@@ -12,6 +13,10 @@ import {
   getPatternPath,
 } from '../lib/assetCategories'
 
+// Layout spacing constants (increased ~12% for more background visibility)
+const LAYOUT_PADDING_RATIO = 0.05  // was 0.03
+const LAYOUT_GAP_RATIO = 0.025     // was 0.015
+
 // ============================================
 // CONSTANTS
 // ============================================
@@ -21,9 +26,38 @@ const TABS = {
 }
 
 const BG_TYPES = {
+  SOLID: 'solid',
   SCENE: 'scene',
   PATTERN: 'pattern',
 }
+
+// Solid color options (18 curated colors, no PNG assets)
+// Order: Neutrals → Pastels → Bold → Dark
+// light: true means dark text needed for contrast
+const SOLID_COLORS = [
+  // Core neutrals
+  { id: 'white', name: 'White', color: '#FFFFFF', light: true },
+  { id: 'cream', name: 'Cream', color: '#FAFAF7', light: true },
+  { id: 'light-gray', name: 'Light Gray', color: '#E6E6E6', light: true },
+  { id: 'medium-gray', name: 'Med Gray', color: '#CFCFCF', light: true },
+  { id: 'charcoal', name: 'Charcoal', color: '#1E1E1E', light: false },
+  { id: 'black', name: 'Black', color: '#000000', light: false },
+  // Soft pastels
+  { id: 'blush-pink', name: 'Blush', color: '#F6C1CC', light: true },
+  { id: 'lavender', name: 'Lavender', color: '#E6D9FF', light: true },
+  { id: 'baby-blue', name: 'Baby Blue', color: '#DCEBFF', light: true },
+  { id: 'mint', name: 'Mint', color: '#DFF3EA', light: true },
+  { id: 'peach', name: 'Peach', color: '#FFE3D6', light: true },
+  { id: 'butter-yellow', name: 'Butter', color: '#FFF3C4', light: true },
+  // Bold / aesthetic
+  { id: 'royal-blue', name: 'Royal', color: '#1E40FF', light: false },
+  { id: 'emerald-green', name: 'Emerald', color: '#0F766E', light: false },
+  { id: 'crimson-red', name: 'Crimson', color: '#E53935', light: false },
+  { id: 'deep-purple', name: 'Purple', color: '#5B2D8B', light: false },
+  // Dark tones
+  { id: 'midnight-blue', name: 'Midnight', color: '#0F172A', light: false },
+  { id: 'forest-green', name: 'Forest', color: '#1B4332', light: false },
+]
 
 // ============================================
 // HELPER: Draw image with cover behavior
@@ -76,194 +110,147 @@ function loadImage(src) {
 }
 
 // ============================================
-// BACKGROUND THUMBNAIL COMPONENT
+// BACKGROUND THUMBNAIL COMPONENT (Memoized)
+// - Receives num + onSelect to avoid inline callback props
 // ============================================
-function BackgroundThumbnail({ src, isSelected, onClick, type }) {
+const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSelected, onSelect }) {
+  const [loaded, setLoaded] = useState(false)
+  
+  const fullSrc = type === BG_TYPES.SCENE ? getScenePath(num) : getPatternPath(num)
+  const handleClick = useCallback(() => {
+    onSelect({ type, num })
+  }, [onSelect, type, num])
+  
+  const selectedClass = isSelected
+    ? 'ring-2 ring-[#B8001F] ring-offset-2 scale-[1.02]'
+    : 'hover:scale-[1.03]'
+  
+  // Pattern: use div with tiled background (no cropped img)
+  if (type === BG_TYPES.PATTERN) {
+    return (
+      <button
+        onClick={handleClick}
+        className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
+        style={{
+          backgroundImage: `url(${fullSrc})`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '64px 64px',
+          '--tw-ring-offset-color': 'var(--panel-bg)',
+        }}
+      />
+    )
+  }
+
+  // Scene: use img with cover
   return (
     <button
-      onClick={onClick}
-      className={`relative aspect-square rounded-lg overflow-hidden transition-all duration-200 ${
-        isSelected
-          ? 'ring-2 ring-[#B8001F] ring-offset-2 ring-offset-[var(--color-glass)] scale-[1.02]'
-          : 'hover:scale-[1.02] hover:ring-1 hover:ring-[var(--color-border)]'
-      }`}
+      onClick={handleClick}
+      className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
+      style={{ '--tw-ring-offset-color': 'var(--panel-bg)' }}
     >
+      {!loaded && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse" />}
       <img
-        src={src}
+        src={fullSrc}
         alt=""
-        className="w-full h-full"
-        style={{
-          objectFit: type === BG_TYPES.SCENE ? 'cover' : 'none',
-          objectPosition: 'center',
-        }}
+        className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
+        onLoad={() => setLoaded(true)}
       />
     </button>
   )
-}
+})
 
 // ============================================
-// ELEMENT THUMBNAIL COMPONENT
+// ELEMENT THUMBNAIL COMPONENT (Memoized, click-to-add)
+// - Receives num + onAdd to avoid inline callback props
 // ============================================
-function ElementThumbnail({ src, onDragStart, onDragEnd }) {
-  const [isDragging, setIsDragging] = useState(false)
-
-  const handleDragStart = (e) => {
-    setIsDragging(true)
-    // Set drag data with element path
-    e.dataTransfer.setData('text/plain', src)
-    e.dataTransfer.effectAllowed = 'copy'
-    
-    // Create a small drag image
-    const dragImg = new Image()
-    dragImg.src = src
-    e.dataTransfer.setDragImage(dragImg, 40, 40)
-    
-    onDragStart?.(src)
-  }
-
-  const handleDragEnd = () => {
-    setIsDragging(false)
-    onDragEnd?.()
-  }
+const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
+  const [loaded, setLoaded] = useState(false)
+  
+  const fullSrc = getElementPath(num)
+  const handleClick = useCallback(() => {
+    onAdd(fullSrc)
+  }, [onAdd, fullSrc])
 
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      className={`relative aspect-square rounded-lg overflow-hidden cursor-grab active:cursor-grabbing 
-                  transition-all duration-200 hover:scale-105 bg-[var(--color-surface)]/50 p-1
-                  ${isDragging ? 'opacity-50' : ''}`}
+    <button
+      onClick={handleClick}
+      className="thumbnail-card relative aspect-square rounded-xl overflow-hidden cursor-pointer
+                  transition-all duration-200 hover:scale-105 p-1.5"
     >
+      {!loaded && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse rounded-lg" />}
       <img
-        src={src}
+        src={fullSrc}
         alt=""
-        className="w-full h-full object-contain"
+        className={`w-full h-full object-contain transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         draggable={false}
+        onLoad={() => setLoaded(true)}
       />
-    </div>
+    </button>
   )
-}
+})
 
 // ============================================
-// PLACED ELEMENT COMPONENT
+// PLACED ELEMENT COMPONENT (transform-only positioning for Moveable)
+// - Uses transform for ALL positioning (no left/top mixing)
+// - will-change + touch-action for smooth dragging
+// - Includes delete X button when selected (hidden during export)
 // ============================================
-function PlacedElement({ element, isSelected, onSelect, onUpdate, onDelete, containerRef }) {
-  const elementRef = useRef(null)
-  const [isDragging, setIsDragging] = useState(false)
+const PlacedElement = memo(function PlacedElement({ element, containerRef, isSelected, onSelect, onDelete, isExporting }) {
+  const size = element.scale * 80
+  
+  // Calculate pixel position from percentage (transform-only approach)
+  const getTransformStyle = () => {
+    if (!containerRef?.current) {
+      return `translate(-50%, -50%) rotate(${element.rotation}deg)`
+    }
+    const rect = containerRef.current.getBoundingClientRect()
+    const px = (element.x / 100) * rect.width
+    const py = (element.y / 100) * rect.height
+    return `translate(${px - size/2}px, ${py - size/2}px) rotate(${element.rotation}deg)`
+  }
 
-  const handleMouseDown = useCallback((e) => {
+  const handleDelete = (e) => {
     e.stopPropagation()
-    onSelect(element.id)
-    
-    if (!containerRef.current) return
-    
-    setIsDragging(true)
-    const container = containerRef.current
-    const rect = container.getBoundingClientRect()
-    
-    const startX = e.clientX
-    const startY = e.clientY
-    const startPosX = element.x
-    const startPosY = element.y
-
-    const handleMove = (moveEvent) => {
-      const deltaX = ((moveEvent.clientX - startX) / rect.width) * 100
-      const deltaY = ((moveEvent.clientY - startY) / rect.height) * 100
-      
-      onUpdate(element.id, {
-        x: Math.max(0, Math.min(100, startPosX + deltaX)),
-        y: Math.max(0, Math.min(100, startPosY + deltaY)),
-      })
-    }
-
-    const handleUp = () => {
-      setIsDragging(false)
-      document.removeEventListener('mousemove', handleMove)
-      document.removeEventListener('mouseup', handleUp)
-    }
-
-    document.addEventListener('mousemove', handleMove)
-    document.addEventListener('mouseup', handleUp)
-  }, [element, onSelect, onUpdate, containerRef])
-
-  const handleTouchStart = useCallback((e) => {
-    e.stopPropagation()
-    onSelect(element.id)
-    
-    if (!containerRef.current) return
-    
-    setIsDragging(true)
-    const container = containerRef.current
-    const rect = container.getBoundingClientRect()
-    const touch = e.touches[0]
-    
-    const startX = touch.clientX
-    const startY = touch.clientY
-    const startPosX = element.x
-    const startPosY = element.y
-
-    const handleMove = (moveEvent) => {
-      const t = moveEvent.touches[0]
-      const deltaX = ((t.clientX - startX) / rect.width) * 100
-      const deltaY = ((t.clientY - startY) / rect.height) * 100
-      
-      onUpdate(element.id, {
-        x: Math.max(0, Math.min(100, startPosX + deltaX)),
-        y: Math.max(0, Math.min(100, startPosY + deltaY)),
-      })
-    }
-
-    const handleEnd = () => {
-      setIsDragging(false)
-      document.removeEventListener('touchmove', handleMove)
-      document.removeEventListener('touchend', handleEnd)
-    }
-
-    document.addEventListener('touchmove', handleMove, { passive: false })
-    document.addEventListener('touchend', handleEnd)
-  }, [element, onSelect, onUpdate, containerRef])
+    onDelete(element.id)
+  }
 
   return (
     <div
-      ref={elementRef}
-      className={`absolute cursor-move select-none transition-shadow ${
-        isSelected ? 'z-50' : 'z-40'
-      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      data-element-id={element.id}
+      className={`placed-element absolute select-none ${isSelected && !isExporting ? 'z-50' : 'z-40'}`}
       style={{
-        left: `${element.x}%`,
-        top: `${element.y}%`,
-        transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${element.scale})`,
+        left: 0,
+        top: 0,
+        width: `${size}px`,
+        height: `${size}px`,
+        transform: getTransformStyle(),
+        transformOrigin: 'center center',
+        willChange: 'transform',
+        touchAction: 'none',
       }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
+      onClick={(e) => { e.stopPropagation(); onSelect(element.id) }}
     >
       <img
         src={element.src}
         alt=""
-        className={`max-w-[80px] md:max-w-[100px] pointer-events-none ${
-          isSelected ? 'ring-2 ring-[#B8001F] ring-offset-2 rounded-lg' : ''
-        }`}
+        className="w-full h-full object-contain pointer-events-none"
         draggable={false}
       />
-      {isSelected && (
+      {/* Delete X button - only when selected and not exporting */}
+      {isSelected && !isExporting && (
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete(element.id)
-          }}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full 
-                     flex items-center justify-center text-xs font-bold shadow-lg
-                     hover:bg-red-600 transition-colors"
+          onClick={handleDelete}
+          className="element-delete-btn"
+          title="Delete element"
         >
           ×
         </button>
       )}
     </div>
   )
-}
+})
 
 // ============================================
 // MAIN EDITOR COMPONENT
@@ -276,9 +263,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [activeTab, setActiveTab] = useState(TABS.BACKGROUND)
   
   // Background state
-  const [bgType, setBgType] = useState(BG_TYPES.SCENE)
+  const [bgType, setBgType] = useState(BG_TYPES.SOLID)
   const [bgCategory, setBgCategory] = useState('all')
-  const [selectedBg, setSelectedBg] = useState(null) // { type, num }
+  const [selectedBg, setSelectedBg] = useState({ type: BG_TYPES.SOLID, color: '#ffffff' }) // { type, num } or { type, color }
+  const [loadedBgUrl, setLoadedBgUrl] = useState(null) // URL of fully loaded background
+  const [bgTransitioning, setBgTransitioning] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Elements state
   const [elementCategory, setElementCategory] = useState('all')
@@ -299,20 +289,23 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const { rows, cols } = gridConfig
   
   const isVertical = orientation?.id === 'vertical'
-  const canvasAspectRatio = orientation?.width / orientation?.height
 
-  // Get backgrounds for current category
+  // Get all backgrounds for current category (no pagination - scroll only)
   const availableBackgrounds = bgType === BG_TYPES.SCENE
     ? getScenesByCategory(bgCategory)
-    : getPatternsByCategory(bgCategory)
+    : bgType === BG_TYPES.PATTERN
+      ? getPatternsByCategory(bgCategory)
+      : []
 
-  // Get elements for current category
+  // Get all elements for current category (no pagination - scroll only)
   const availableElements = getElementsByCategory(elementCategory)
 
   // Get category options
   const bgCategories = bgType === BG_TYPES.SCENE
     ? { all: { name: 'All' }, ...SCENE_CATEGORIES }
-    : { all: { name: 'All' }, ...PATTERN_CATEGORIES }
+    : bgType === BG_TYPES.PATTERN
+      ? { all: { name: 'All' }, ...PATTERN_CATEGORIES }
+      : {}
 
   const elementCategories = { all: { name: 'All' }, ...ELEMENT_CATEGORIES }
 
@@ -333,9 +326,59 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       .catch(console.error)
   }, [photos])
 
+
+  // ----------------------------------------
+  // BACKGROUND PRELOAD HANDLER
+  // ----------------------------------------
+  const handleSelectBg = useCallback((newBg) => {
+    if (!newBg) {
+      setSelectedBg(null)
+      setLoadedBgUrl(null)
+      return
+    }
+    
+    // Solid colors don't need preloading
+    if (newBg.type === BG_TYPES.SOLID) {
+      setBgTransitioning(true)
+      setSelectedBg(newBg)
+      setLoadedBgUrl(null)
+      setTimeout(() => setBgTransitioning(false), 200)
+      return
+    }
+    
+    const bgPath = newBg.type === BG_TYPES.SCENE
+      ? getScenePath(newBg.num)
+      : getPatternPath(newBg.num)
+    
+    // Preload image before committing
+    const img = new Image()
+    img.onload = () => {
+      setBgTransitioning(true)
+      setSelectedBg(newBg)
+      setLoadedBgUrl(bgPath)
+      // End transition after crossfade
+      setTimeout(() => setBgTransitioning(false), 200)
+    }
+    img.src = bgPath
+  }, [])
+
   // ----------------------------------------
   // ELEMENT HANDLERS
   // ----------------------------------------
+  // Click-to-add element centered
+  const addElementCentered = useCallback((src) => {
+    const newElement = {
+      id: Date.now() + Math.random(),
+      src,
+      x: 50,
+      y: 50,
+      scale: 1,
+      rotation: 0,
+    }
+    setPlacedElements(prev => [...prev, newElement])
+    setSelectedElementId(newElement.id)
+  }, [])
+
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     const src = e.dataTransfer.getData('text/plain')
@@ -345,7 +388,6 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
 
-    // Add element only on drop - this prevents ghosting
     const newElement = {
       id: Date.now() + Math.random(),
       src,
@@ -379,44 +421,47 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     setSelectedElementId(null)
   }, [])
 
+
   // ----------------------------------------
-  // BACKGROUND STYLE FOR PREVIEW
+  // BACKGROUND STYLE FOR PREVIEW (crossfade layer)
   // ----------------------------------------
   const getBackgroundStyle = () => {
-    if (!selectedBg) {
+    // Solid color backgrounds
+    if (selectedBg?.type === BG_TYPES.SOLID) {
+      return { backgroundColor: selectedBg.color }
+    }
+    
+    if (!loadedBgUrl) {
       return { backgroundColor: '#ffffff' }
     }
 
-    const bgPath = selectedBg.type === BG_TYPES.SCENE
-      ? getScenePath(selectedBg.num)
-      : getPatternPath(selectedBg.num)
-
-    if (selectedBg.type === BG_TYPES.SCENE) {
+    if (selectedBg?.type === BG_TYPES.SCENE) {
       return {
-        backgroundImage: `url(${bgPath})`,
+        backgroundImage: `url(${loadedBgUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
       }
     } else {
       return {
-        backgroundImage: `url(${bgPath})`,
+        backgroundImage: `url(${loadedBgUrl})`,
         backgroundRepeat: 'repeat',
-        backgroundSize: '256px 256px', // Tile size for patterns
+        backgroundSize: '240px 240px', // Pattern tile size
       }
     }
   }
 
   // ----------------------------------------
-  // PHOTO GRID LAYOUT CALCULATION
+  // PHOTO GRID LAYOUT CALCULATION (uses spacing constants)
   // ----------------------------------------
   const getPhotoGridStyle = () => {
+    // ~5% padding, ~2.5% gap for more background visibility
     return {
       display: 'grid',
       gridTemplateColumns: `repeat(${cols}, 1fr)`,
       gridTemplateRows: `repeat(${rows}, 1fr)`,
-      gap: '8px',
-      padding: '16px',
+      gap: '2.5%',
+      padding: '5%',
       height: '100%',
     }
   }
@@ -426,6 +471,13 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // ----------------------------------------
   const handleExport = async () => {
     if (!exportCanvasRef.current || !loadedPhotos.length) return
+
+    // Hide selection UI during export
+    setIsExporting(true)
+    setSelectedElementId(null)
+    
+    // Wait for UI to settle
+    await new Promise(r => setTimeout(r, 50))
 
     const canvas = exportCanvasRef.current
     const ctx = canvas.getContext('2d')
@@ -437,22 +489,27 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     canvas.height = canvasHeight
 
     // LAYER 1: Background
-    if (selectedBg) {
-      const bgPath = selectedBg.type === BG_TYPES.SCENE
-        ? getScenePath(selectedBg.num)
-        : getPatternPath(selectedBg.num)
-
+    if (selectedBg?.type === BG_TYPES.SOLID) {
+      // Solid color background
+      ctx.fillStyle = selectedBg.color
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+    } else if (selectedBg && loadedBgUrl) {
       try {
-        const bgImg = await loadImage(bgPath)
+        const bgImg = await loadImage(loadedBgUrl)
 
         if (selectedBg.type === BG_TYPES.SCENE) {
           // Scene: cover behavior
           drawImageCover(ctx, bgImg, 0, 0, canvasWidth, canvasHeight)
         } else {
-          // Pattern: repeat/tile
+          // Pattern: repeat/tile at 240px (matching preview)
           const pattern = ctx.createPattern(bgImg, 'repeat')
+          ctx.save()
+          // Scale pattern to match 240px preview tile size
+          const scaleFactor = 240 / bgImg.width * (canvasWidth / 400) // Adjust for canvas size
+          ctx.scale(scaleFactor, scaleFactor)
           ctx.fillStyle = pattern
-          ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+          ctx.fillRect(0, 0, canvasWidth / scaleFactor, canvasHeight / scaleFactor)
+          ctx.restore()
         }
       } catch (err) {
         console.error('Failed to load background:', err)
@@ -460,18 +517,16 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         ctx.fillRect(0, 0, canvasWidth, canvasHeight)
       }
     } else {
-      // Default white background
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvasWidth, canvasHeight)
     }
 
-    // LAYER 2: Photos
-    const padding = Math.min(canvasWidth, canvasHeight) * 0.03
-    const gap = Math.min(canvasWidth, canvasHeight) * 0.015
-    const brandingHeight = 0 // No branding in editor mode
+    // LAYER 2: Photos (use spacing constants for pixel-match)
+    const padding = Math.min(canvasWidth, canvasHeight) * LAYOUT_PADDING_RATIO
+    const gap = Math.min(canvasWidth, canvasHeight) * LAYOUT_GAP_RATIO
 
     const availableWidth = canvasWidth - (padding * 2) - (gap * (cols - 1))
-    const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1)) - brandingHeight
+    const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1))
 
     const photoWidth = availableWidth / cols
     const photoHeight = availableHeight / rows
@@ -504,17 +559,21 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       ctx.restore()
     })
 
-    // LAYER 3: Elements
+    // LAYER 3: Elements (clipped to frame)
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, canvasWidth, canvasHeight)
+    ctx.clip()
+    
     for (const element of placedElements) {
       try {
         const elImg = await loadImage(element.src)
         
-        // Calculate position relative to canvas
         const x = (element.x / 100) * canvasWidth
         const y = (element.y / 100) * canvasHeight
         
-        // Element size (scale relative to canvas)
-        const baseSize = Math.min(canvasWidth, canvasHeight) * 0.12
+        // Match preview element size
+        const baseSize = Math.min(canvasWidth, canvasHeight) * 0.08
         const size = baseSize * element.scale
 
         ctx.save()
@@ -526,6 +585,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         console.error('Failed to load element:', err)
       }
     }
+    ctx.restore()
 
     // Download
     const link = document.createElement('a')
@@ -533,6 +593,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     link.href = canvas.toDataURL('image/png')
     link.click()
 
+    setIsExporting(false)
     onComplete?.(canvas.toDataURL('image/png'))
   }
 
@@ -545,254 +606,338 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // RENDER
   // ----------------------------------------
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row items-start justify-center gap-6 px-4 py-8">
-      {/* Left: Canvas Preview */}
-      <div className={`flex-1 max-w-2xl w-full ${isLoaded ? 'scale-in' : 'opacity-0'}`}>
-        <div className="text-center mb-4">
-          <h2 className="text-2xl md:text-3xl font-bold">Customize</h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            {layout?.name} • {orientation?.name}
-          </p>
-        </div>
-
-        {/* Canvas Container */}
-        <div
-          ref={canvasContainerRef}
-          className="relative glass rounded-2xl overflow-hidden mx-auto"
-          style={{
-            aspectRatio: `${orientation?.width} / ${orientation?.height}`,
-            maxWidth: isVertical ? '400px' : '100%',
-            maxHeight: isVertical ? '80vh' : '60vh',
-            ...getBackgroundStyle(),
-          }}
-          onClick={deselectAll}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          {/* Photo Grid - LAYER 2 */}
-          <div style={getPhotoGridStyle()}>
-            {photos.slice(0, layout?.shots || 4).map((photo, index) => (
-              <div
-                key={index}
-                className="relative overflow-hidden rounded-lg shadow-md bg-white"
-              >
-                <img
-                  src={photo}
-                  alt={`Photo ${index + 1}`}
-                  className="w-full h-full object-cover"
-                  draggable={false}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Placed Elements - LAYER 3 */}
-          {placedElements.map(element => (
-            <PlacedElement
-              key={element.id}
-              element={element}
-              isSelected={element.id === selectedElementId}
-              onSelect={setSelectedElementId}
-              onUpdate={updateElement}
-              onDelete={deleteElement}
-              containerRef={canvasContainerRef}
-            />
-          ))}
-        </div>
-
-        {/* Element Controls */}
-        {selectedElement && (
-          <div className="mt-4 glass rounded-xl p-4 fade-up">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--color-text-muted)] font-medium">Size</span>
-                <input
-                  type="range"
-                  min="0.3"
-                  max="2"
-                  step="0.1"
-                  value={selectedElement.scale}
-                  onChange={(e) => updateElement(selectedElement.id, { scale: parseFloat(e.target.value) })}
-                  className="w-24 accent-[#B8001F]"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--color-text-muted)] font-medium">Rotate</span>
-                <input
-                  type="range"
-                  min="-180"
-                  max="180"
-                  step="5"
-                  value={selectedElement.rotation}
-                  onChange={(e) => updateElement(selectedElement.id, { rotation: parseInt(e.target.value) })}
-                  className="w-24 accent-[#B8001F]"
-                />
-              </div>
-              <button
-                onClick={() => deleteElement(selectedElement.id)}
-                className="ml-auto px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors text-sm font-semibold"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+      {/* Shared Header - centered above both canvas and sidebar */}
+      <div className={`text-center mb-6 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
+        <h2 className="text-2xl md:text-3xl font-bold">Customize</h2>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          {layout?.name} • {orientation?.name}
+        </p>
       </div>
 
-      {/* Right: Tools Panel */}
-      <div className={`w-full lg:w-80 ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}>
-        <div className="glass rounded-2xl p-4">
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 p-1 bg-[var(--color-surface)]/50 rounded-xl">
-            <button
-              onClick={() => setActiveTab(TABS.BACKGROUND)}
-              className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === TABS.BACKGROUND
-                  ? 'bg-white dark:bg-[var(--color-surface-elevated)] text-[#B8001F] shadow-sm'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-              }`}
-            >
-              Background
-            </button>
-            <button
-              onClick={() => setActiveTab(TABS.ELEMENTS)}
-              className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === TABS.ELEMENTS
-                  ? 'bg-white dark:bg-[var(--color-surface-elevated)] text-[#B8001F] shadow-sm'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-              }`}
-            >
-              Elements
-            </button>
-          </div>
+      {/* Main Content - Canvas + Sidebar (aligned heights) */}
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch justify-center gap-6">
+        {/* Left: Canvas Preview */}
+        <div className={`flex-1 max-w-2xl w-full flex flex-col ${isLoaded ? 'scale-in' : 'opacity-0'}`}>
+          {/* Canvas Container - uses shared height variable */}
+          <div
+            ref={canvasContainerRef}
+            className="relative glass rounded-2xl overflow-hidden mx-auto w-full"
+            style={{
+              aspectRatio: `${orientation?.width} / ${orientation?.height}`,
+              maxWidth: isVertical ? '380px' : '100%',
+              height: 'var(--editor-height)',
+              maxHeight: 'var(--editor-height)',
+            }}
+            onClick={deselectAll}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+          >
+            {/* Background Layer - crossfade transition */}
+            <div
+              className="absolute inset-0 transition-opacity duration-200"
+              style={{
+                ...getBackgroundStyle(),
+                opacity: bgTransitioning ? 0.7 : 1,
+              }}
+            />
 
-          {/* BACKGROUND TAB */}
-          {activeTab === TABS.BACKGROUND && (
-            <div className="space-y-4">
-              {/* Scene vs Pattern Toggle */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setBgType(BG_TYPES.SCENE); setBgCategory('all') }}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    bgType === BG_TYPES.SCENE
-                      ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                      : 'bg-[var(--color-surface)]/50 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]'
-                  }`}
+            {/* Photo Grid - LAYER 2 (stable, doesn't remount on bg change) */}
+            <div className="relative z-10" style={getPhotoGridStyle()}>
+              {photos.slice(0, layout?.shots || 4).map((photo, index) => (
+                <div
+                  key={index}
+                  className="relative overflow-hidden rounded-lg shadow-md bg-white"
                 >
-                  Scenes
+                  <img
+                    src={photo}
+                    alt={`Photo ${index + 1}`}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Placed Elements - LAYER 3 (clipped to frame) */}
+            <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none">
+              <div className="relative w-full h-full pointer-events-auto">
+                {placedElements.map(element => (
+                  <PlacedElement
+                    key={element.id}
+                    element={element}
+                    containerRef={canvasContainerRef}
+                    isSelected={element.id === selectedElementId}
+                    onSelect={setSelectedElementId}
+                    onDelete={deleteElement}
+                    isExporting={isExporting}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Moveable for selected element - transform-only, single source of truth */}
+            {selectedElementId && !isExporting && (
+              <Moveable
+                target={`.placed-element[data-element-id="${selectedElementId}"]`}
+                container={canvasContainerRef.current}
+                draggable={true}
+                rotatable={true}
+                resizable={true}
+                keepRatio={true}
+                throttleDrag={0}
+                throttleRotate={0}
+                throttleResize={0}
+                renderDirections={['nw', 'ne', 'sw', 'se']}
+                rotationPosition="top"
+                origin={false}
+                // DRAG: Direct DOM transform update only
+                onDrag={({ target, transform }) => {
+                  target.style.transform = transform
+                }}
+                onDragEnd={({ target, lastEvent }) => {
+                  if (!lastEvent) return
+                  const container = canvasContainerRef.current
+                  if (!container) return
+                  const containerRect = container.getBoundingClientRect()
+                  const elRect = target.getBoundingClientRect()
+                  const centerX = elRect.left - containerRect.left + elRect.width / 2
+                  const centerY = elRect.top - containerRect.top + elRect.height / 2
+                  updateElement(selectedElementId, {
+                    x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
+                    y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                  })
+                }}
+                // ROTATE: Direct DOM transform update only
+                onRotate={({ target, transform }) => {
+                  target.style.transform = transform
+                }}
+                onRotateEnd={({ target, lastEvent }) => {
+                  if (!lastEvent) return
+                  updateElement(selectedElementId, { rotation: lastEvent.rotate })
+                }}
+                // RESIZE: Direct DOM update during resize
+                onResize={({ target, width, height, drag }) => {
+                  target.style.width = `${width}px`
+                  target.style.height = `${height}px`
+                  target.style.transform = drag.transform
+                }}
+                onResizeEnd={({ target, lastEvent }) => {
+                  if (!lastEvent) return
+                  const container = canvasContainerRef.current
+                  if (!container) return
+                  const containerRect = container.getBoundingClientRect()
+                  const elRect = target.getBoundingClientRect()
+                  const centerX = elRect.left - containerRect.left + elRect.width / 2
+                  const centerY = elRect.top - containerRect.top + elRect.height / 2
+                  const newWidth = parseFloat(target.style.width)
+                  const newScale = newWidth / 80
+                  updateElement(selectedElementId, { 
+                    scale: Math.max(0.3, Math.min(3, newScale)),
+                    x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
+                    y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                  })
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Right: Tools Panel - Fixed height scaffold */}
+        <div className={`w-full lg:w-[380px] flex flex-col ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+             style={{ height: 'var(--editor-height)' }}>
+          {/* Sidebar Panel - uses CSS variables for theme */}
+          <div className="sidebar-panel rounded-2xl shadow-lg flex flex-col h-full">
+            
+            {/* === FIXED HEADER AREA === */}
+            <div className="p-4 pb-3 space-y-3">
+              {/* Main Tabs - Background / Elements */}
+              <div className="flex gap-1.5 p-1.5 rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
+                <button
+                  onClick={() => setActiveTab(TABS.BACKGROUND)}
+                  className={`flex-1 h-10 rounded-lg text-sm font-semibold transition-all ${
+                    activeTab === TABS.BACKGROUND
+                      ? 'text-[#B8001F] shadow-sm'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                  }`}
+                  style={activeTab === TABS.BACKGROUND ? { background: 'var(--toggle-active-bg)' } : {}}
+                >
+                  Background
                 </button>
                 <button
-                  onClick={() => { setBgType(BG_TYPES.PATTERN); setBgCategory('all') }}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    bgType === BG_TYPES.PATTERN
-                      ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                      : 'bg-[var(--color-surface)]/50 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]'
+                  onClick={() => setActiveTab(TABS.ELEMENTS)}
+                  className={`flex-1 h-10 rounded-lg text-sm font-semibold transition-all ${
+                    activeTab === TABS.ELEMENTS
+                      ? 'text-[#B8001F] shadow-sm'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
                   }`}
+                  style={activeTab === TABS.ELEMENTS ? { background: 'var(--toggle-active-bg)' } : {}}
                 >
-                  Patterns
+                  Elements
                 </button>
               </div>
 
-              {/* Category Filter */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                {Object.entries(bgCategories).map(([key, cat]) => (
+              {/* Background sub-toggles (always rendered for stable height) */}
+              {activeTab === TABS.BACKGROUND && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setBgType(BG_TYPES.SOLID); setBgCategory('all') }}
+                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                      bgType === BG_TYPES.SOLID
+                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                    }`}
+                    style={bgType !== BG_TYPES.SOLID ? { background: 'var(--toggle-bg)' } : {}}
+                  >
+                    Solid
+                  </button>
+                  <button
+                    onClick={() => { setBgType(BG_TYPES.SCENE); setBgCategory('all') }}
+                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                      bgType === BG_TYPES.SCENE
+                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                    }`}
+                    style={bgType !== BG_TYPES.SCENE ? { background: 'var(--toggle-bg)' } : {}}
+                  >
+                    Scenes
+                  </button>
+                  <button
+                    onClick={() => { setBgType(BG_TYPES.PATTERN); setBgCategory('all') }}
+                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                      bgType === BG_TYPES.PATTERN
+                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                    }`}
+                    style={bgType !== BG_TYPES.PATTERN ? { background: 'var(--toggle-bg)' } : {}}
+                  >
+                    Patterns
+                  </button>
+                </div>
+              )}
+
+              {/* Elements helper text */}
+              {activeTab === TABS.ELEMENTS && (
+                <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                  Click to add elements to your photo
+                </p>
+              )}
+
+              {/* Category chips row - horizontal scroll */}
+              <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
+                {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && Object.entries(bgCategories).map(([key, cat]) => (
                   <button
                     key={key}
                     onClick={() => setBgCategory(key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                       bgCategory === key
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]/50'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
                     }`}
+                    style={bgCategory !== key ? { background: 'var(--toggle-bg)' } : {}}
                   >
                     {cat.name}
                   </button>
                 ))}
-              </div>
-
-              {/* Background Grid */}
-              <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                {/* None option */}
-                <button
-                  onClick={() => setSelectedBg(null)}
-                  className={`relative aspect-square rounded-lg overflow-hidden transition-all duration-200 
-                              bg-white border-2 border-dashed flex items-center justify-center ${
-                    selectedBg === null
-                      ? 'border-[#B8001F] ring-2 ring-[#B8001F] ring-offset-2'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
-                  }`}
-                >
-                  <span className="text-xs text-[var(--color-text-muted)] font-medium">None</span>
-                </button>
-
-                {availableBackgrounds.map((num) => (
-                  <BackgroundThumbnail
-                    key={`${bgType}-${num}`}
-                    src={bgType === BG_TYPES.SCENE ? getScenePath(num) : getPatternPath(num)}
-                    type={bgType}
-                    isSelected={selectedBg?.type === bgType && selectedBg?.num === num}
-                    onClick={() => setSelectedBg({ type: bgType, num })}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ELEMENTS TAB */}
-          {activeTab === TABS.ELEMENTS && (
-            <div className="space-y-4">
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Drag elements onto your photo
-              </p>
-
-              {/* Category Filter */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                {Object.entries(elementCategories).map(([key, cat]) => (
+                {activeTab === TABS.ELEMENTS && Object.entries(elementCategories).map(([key, cat]) => (
                   <button
                     key={key}
                     onClick={() => setElementCategory(key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                       elementCategory === key
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]/50'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
                     }`}
+                    style={elementCategory !== key ? { background: 'var(--toggle-bg)' } : {}}
                   >
                     {cat.name}
                   </button>
                 ))}
               </div>
-
-              {/* Elements Grid */}
-              <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-                {availableElements.map((num) => (
-                  <ElementThumbnail
-                    key={num}
-                    src={getElementPath(num)}
-                  />
-                ))}
-              </div>
             </div>
-          )}
-        </div>
 
-        {/* Actions */}
-        <div className="mt-4 space-y-2">
-          <button
-            onClick={handleExport}
-            disabled={!loadedPhotos.length}
-            className="w-full py-4 rounded-xl btn-primary text-white font-bold text-lg 
-                       shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Download
-          </button>
-          <button
-            onClick={onReset}
-            className="w-full py-3 rounded-xl glass text-[var(--color-text-secondary)] 
-                       hover:text-[var(--color-text-primary)] transition-all font-semibold"
-          >
-            Start Over
-          </button>
+            {/* === SCROLLABLE CONTENT AREA === */}
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-4">
+              {/* Background grids */}
+              {activeTab === TABS.BACKGROUND && bgType === BG_TYPES.SOLID && (
+                <div className="grid grid-cols-3 gap-3">
+                  {SOLID_COLORS.map((solid) => (
+                    <button
+                      key={solid.id}
+                      onClick={() => handleSelectBg({ type: BG_TYPES.SOLID, color: solid.color })}
+                      className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 
+                                  flex items-center justify-center ${
+                        selectedBg?.type === BG_TYPES.SOLID && selectedBg?.color === solid.color
+                          ? 'ring-2 ring-[#B8001F] ring-offset-2 scale-[1.02]'
+                          : 'hover:scale-[1.03]'
+                      }`}
+                      style={{
+                        backgroundColor: solid.color,
+                        borderColor: solid.light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+                        '--tw-ring-offset-color': 'var(--panel-bg)',
+                      }}
+                    >
+                      <span
+                        className="text-[11px] font-medium"
+                        style={{ color: solid.light ? '#333' : '#fff' }}
+                      >
+                        {solid.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && (
+                <div className="grid grid-cols-3 gap-3">
+                  {availableBackgrounds.map((num) => (
+                    <BackgroundThumbnail
+                      key={`${bgType}-${num}`}
+                      num={num}
+                      type={bgType}
+                      isSelected={selectedBg?.type === bgType && selectedBg?.num === num}
+                      onSelect={handleSelectBg}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Elements grid */}
+              {activeTab === TABS.ELEMENTS && (
+                <div className="grid grid-cols-4 gap-2.5">
+                  {availableElements.map((num) => (
+                    <ElementThumbnail
+                      key={num}
+                      num={num}
+                      onAdd={addElementCentered}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* === FIXED BOTTOM ACTIONS (inside panel) === */}
+            <div className="p-4 pt-3 space-y-2.5 border-t border-[var(--card-border)]">
+              <button
+                onClick={handleExport}
+                disabled={!loadedPhotos.length}
+                className="w-full py-3.5 rounded-xl btn-primary text-white font-bold text-base 
+                           shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Download
+              </button>
+              <button
+                onClick={onReset}
+                className="w-full py-2.5 rounded-xl text-sm
+                           text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] 
+                           transition-all font-semibold"
+                style={{ background: 'var(--toggle-bg)' }}
+              >
+                Start Over
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

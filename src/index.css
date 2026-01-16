@@ -14,9 +14,10 @@
   --color-bg: #FAFAFA;
   --color-bg-start: #FAFAFA;
   --color-bg-end: #FFF8F9;
-  --color-surface: #F8F9FA;
+  --color-surface: #F0F1F3;
   --color-surface-elevated: #FFFFFF;
-  --color-border: #E5E7EB;
+  --color-surface-tint: #F7F7F9;
+  --color-border: #E0E2E7;
   --color-text-primary: #1F2937;
   --color-text-secondary: #6B7280;
   --color-text-muted: #9CA3AF;
@@ -24,6 +25,17 @@
   /* Glass effect */
   --color-glass: rgba(255, 255, 255, 0.75);
   --color-glass-border: rgba(0, 0, 0, 0.06);
+  
+  /* Sidebar Panel - Light Mode */
+  --panel-bg: rgba(255, 255, 255, 0.85);
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(0, 0, 0, 0.06);
+  --toggle-bg: rgba(0, 0, 0, 0.04);
+  --toggle-active-bg: #FFFFFF;
+  
+  /* Editor Layout */
+  --editor-height: 540px;
   
   /* Orb colors for light mode - bold and visible */
   --orb-plum: rgba(60, 20, 50, 0.35);      /* Large, deep plum for depth */
@@ -43,7 +55,8 @@
   --color-bg-end: #0F1218;
   --color-surface: #141826;
   --color-surface-elevated: #1A1F2E;
-  --color-border: #1F2437;
+  --color-surface-tint: #12151F;
+  --color-border: #252A3A;
   --color-text-primary: #F5F7FA;
   --color-text-secondary: #9CA3AF;
   --color-text-muted: #6B7280;
@@ -51,6 +64,14 @@
   /* Glass effect - dark */
   --color-glass: rgba(20, 24, 38, 0.8);
   --color-glass-border: rgba(255, 255, 255, 0.08);
+  
+  /* Sidebar Panel - Dark Mode */
+  --panel-bg: rgba(20, 24, 38, 0.9);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --toggle-bg: rgba(0, 0, 0, 0.3);
+  --toggle-active-bg: var(--color-surface);
   
   /* Orb colors for dark mode - layered depth, more visible */
   --orb-plum: rgba(80, 30, 70, 0.25);       /* Large, deep plum for depth */
@@ -459,18 +480,91 @@ body {
    ============================================ */
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-surface);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================
+   SIDEBAR PANEL STYLES
+   ============================================ */
+
+/* Sidebar panel - uses CSS variables for theme */
+.sidebar-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Thumbnail card base - creates card separation from panel */
+.thumbnail-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.dark .thumbnail-card {
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Dark mode thumbnail image visibility - drop shadow on images */
+.dark .sidebar-panel img {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+
+/* Scene/Pattern thumbnails in dark mode */
+.dark .sidebar-panel button[style*="background-image"] {
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Element delete button */
+.element-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #E53935;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.element-delete-btn:hover {
+  transform: scale(1.1);
+  background: #C62828;
 }
