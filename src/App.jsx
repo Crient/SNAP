@@ -95,7 +95,6 @@ function App() {
   const [selectedLayout, setSelectedLayout] = useState(null)
   const [selectedOrientation, setSelectedOrientation] = useState(null)
   const [capturedPhotos, setCapturedPhotos] = useState([])
-  const [composedImage, setComposedImage] = useState(null)
   const [editedImage, setEditedImage] = useState(null)
 
   const handleStart = () => {
@@ -124,8 +123,7 @@ function App() {
     setStage(STAGES.PREVIEW)
   }
 
-  const handlePreviewConfirm = (image) => {
-    setComposedImage(image)
+  const handlePreviewConfirm = () => {
     setStage(STAGES.EDITOR)
   }
 
@@ -138,7 +136,6 @@ function App() {
     setSelectedLayout(null)
     setSelectedOrientation(null)
     setCapturedPhotos([])
-    setComposedImage(null)
     setEditedImage(null)
   }
 
@@ -226,7 +223,9 @@ function App() {
 
         {stage === STAGES.EDITOR && (
           <Editor 
-            image={composedImage}
+            photos={capturedPhotos}
+            layout={selectedLayout}
+            orientation={selectedOrientation}
             onComplete={handleEditorComplete}
             onReset={handleReset}
           />

@@ -15,6 +15,14 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
     return selectedLayout.grid
   }
 
+  // For 3x1 layout, icons are swapped (vertical = computer, horizontal = phone)
+  const getOrientationIcon = (orientation) => {
+    if (selectedLayout.id === 'grid-3x1') {
+      return orientation.id === 'vertical' ? '🖥️' : '📱'
+    }
+    return orientation.icon
+  }
+
   const renderOrientationPreview = (orientation) => {
     const isVertical = orientation.id === 'vertical'
     const grid = getGridForOrientation(orientation.id)
@@ -33,18 +41,15 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
     const cells = Array(selectedLayout.shots).fill(null)
 
     return (
-      <div className={`${containerClass} bg-[var(--color-surface)] rounded-lg p-1.5 mx-auto flex flex-col`}>
+      <div className={`${containerClass} bg-gradient-to-br from-white/50 to-white/30 dark:from-white/[0.1] dark:to-white/[0.05] ring-1 ring-black/[0.04] dark:ring-white/[0.1] rounded-lg p-1.5 mx-auto flex flex-col shadow-inner`}>
         <div className="flex-1 rounded" style={gridStyle}>
           {cells.map((_, i) => (
             <div 
               key={i}
-              className="bg-gradient-to-br from-[#B8001F]/40 to-[#FB708D]/40 rounded-sm"
+              className="bg-gradient-to-br from-[#B8001F]/35 to-[#FB708D]/35 dark:from-[#B8001F]/40 dark:to-[#FB708D]/40 rounded-sm"
             />
           ))}
         </div>
-        {grid.captionSpace && (
-          <div className="h-2 mt-1 bg-[var(--color-border)] rounded-sm" />
-        )}
       </div>
     )
   }
@@ -61,7 +66,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
         </p>
       </div>
 
-      {/* Orientation Options */}
+      {/* Orientation Options - Glassmorphism cards */}
       <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 max-w-xl w-full ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}>
         {orientations.map((orientation, index) => {
           const grid = getGridForOrientation(orientation.id)
@@ -70,34 +75,55 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
             <button
               key={orientation.id}
               onClick={() => onSelect(orientation)}
-              className="group glass rounded-3xl p-6 hover:bg-[var(--color-surface)] transition-all duration-300 
-                         hover:scale-[1.02] hover:shadow-lg"
+              className="group relative text-center p-5 rounded-3xl
+                         bg-white/40 dark:bg-white/[0.08]
+                         backdrop-blur-xl backdrop-saturate-150
+                         border border-white/50 dark:border-white/10
+                         shadow-[0_4px_30px_rgba(0,0,0,0.05)]
+                         hover:scale-[1.02] hover:-translate-y-1
+                         hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)]
+                         hover:bg-white/50 dark:hover:bg-white/[0.12]
+                         active:scale-[0.98]
+                         transition-all duration-300 ease-out"
               style={{ animationDelay: `${200 + index * 100}ms` }}
             >
-              {/* Orientation Preview */}
-              <div className="mb-4 h-36 flex items-center justify-center group-hover:scale-95 transition-transform duration-300">
-                {renderOrientationPreview(orientation)}
+              {/* Sheen overlay */}
+              <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/0 to-transparent dark:from-white/20 dark:via-transparent" />
               </div>
 
-              {/* Orientation Info - Manrope 700 for name, 600 for description */}
-              <div className="text-3xl mb-2">{orientation.icon}</div>
-              <h3 className="font-bold text-lg mb-1">{orientation.name}</h3>
-              <p className="text-sm text-[var(--color-text-secondary)] font-medium">{orientation.description}</p>
-              
-              <span className="inline-block mt-2 text-xs bg-[var(--color-surface)] px-2 py-1 rounded-full text-[var(--color-text-muted)] font-medium">
-                {grid.cols} × {grid.rows} grid
-              </span>
+              {/* Content */}
+              <div className="relative z-10">
+                {/* Orientation Preview */}
+                <div className="mb-4 h-36 flex items-center justify-center group-hover:scale-95 transition-transform duration-300">
+                  {renderOrientationPreview(orientation)}
+                </div>
+
+                {/* Orientation Info */}
+                <div className="text-3xl mb-2">{getOrientationIcon(orientation)}</div>
+                <h3 className="font-bold text-lg mb-1">{orientation.name}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] font-medium">{orientation.description}</p>
+                
+                <span className="inline-block mt-3 text-xs text-[var(--color-brand-primary)] font-semibold">
+                  {grid.cols} × {grid.rows} grid
+                </span>
+              </div>
             </button>
           )
         })}
       </div>
 
-      {/* Back Button - Manrope 600 */}
+      {/* Back Button */}
       <button
         onClick={onBack}
-        className={`mt-10 flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)] transition-colors font-semibold ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
+        className={`mt-12 flex items-center gap-2 px-5 py-2.5 rounded-full
+                    text-[var(--color-text-secondary)] font-semibold
+                    hover:text-[var(--color-brand-primary)]
+                    hover:bg-[var(--color-brand-primary)]/10
+                    transition-all duration-200
+                    ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
         Back to Layouts

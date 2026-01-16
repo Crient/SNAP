@@ -11,7 +11,7 @@ function Landing({ onStart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       {/* Logo and Title */}
-      <div className={`text-center mb-12 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
+      <div className={`text-center mb-8 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
         {/* Animated Camera Icon */}
         <div className="relative inline-block mb-6">
           <div className="text-8xl md:text-9xl float">📸</div>
@@ -20,7 +20,7 @@ function Landing({ onStart }) {
 
         {/* Title - SNAP stays Syne */}
         <h1 
-          className="font-['Syne'] text-6xl md:text-8xl font-extrabold tracking-tight mb-4"
+          className="font-['Syne'] text-6xl md:text-8xl font-extrabold tracking-tight"
           style={{ 
             background: 'linear-gradient(135deg, #B8001F 0%, #FB708D 100%)',
             WebkitBackgroundClip: 'text',
@@ -30,32 +30,36 @@ function Landing({ onStart }) {
         >
           SNAP
         </h1>
+      </div>
 
-        {/* Tagline - Manrope 600 for main, 700 for emphasis */}
+      {/* Tagline + CTA + Features - unified flex column with balanced spacing */}
+      <div className="flex flex-col items-center gap-8">
+        {/* Tagline + CTA group */}
+        <div className="flex flex-col items-center gap-6">
+          {/* Tagline */}
         <p 
-          className={`text-lg md:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+            className={`text-lg md:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] leading-relaxed text-center ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
         >
           Your digital photo booth experience.
           <br />
           <span className="font-bold text-[#B8001F]">Capture moments, create memories.</span>
         </p>
-      </div>
 
-      {/* Start Button - Manrope 700 */}
-      <div className={`${isLoaded ? 'fade-up delay-300' : 'opacity-0'}`}>
+          {/* Start Button */}
+          <div className={`${isLoaded ? 'fade-up delay-300' : 'opacity-0'}`}>
         <button
           onClick={onStart}
-          className="group relative px-12 py-5 rounded-2xl btn-primary text-white font-bold text-xl 
-                     shadow-lg overflow-hidden"
+              className="group relative rounded-2xl btn-primary text-white font-bold text-xl shadow-lg overflow-hidden"
+              style={{ padding: '0.875rem 2rem' }}
         >
           {/* Button Shine Effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
                           -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           
-          <span className="relative flex items-center gap-3">
+              <span className="relative flex items-center gap-3">
             <span>Start Photo Booth</span>
             <svg 
-              className="w-6 h-6 group-hover:translate-x-1 transition-transform" 
+                  className="w-5 h-5 group-hover:translate-x-1 transition-transform" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
@@ -64,10 +68,11 @@ function Landing({ onStart }) {
             </svg>
           </span>
         </button>
+          </div>
       </div>
 
-      {/* Features Preview - Manrope 600 */}
-      <div className={`mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}>
+        {/* Features Preview - softened glass, reduced visual weight */}
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 max-w-xl w-full ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}>
         {[
           { icon: '🎨', label: 'Fun Layouts' },
           { icon: '✨', label: 'Stickers & Text' },
@@ -76,19 +81,23 @@ function Landing({ onStart }) {
         ].map((feature, i) => (
           <div 
             key={feature.label}
-            className="glass rounded-2xl p-4 text-center hover:bg-[var(--color-surface)] transition-colors cursor-default"
-            style={{ animationDelay: `${400 + i * 100}ms` }}
+              className="rounded-xl flex flex-col items-center justify-center gap-1.5 transition-colors cursor-default"
+              style={{ 
+                padding: '0.75rem 0.875rem',
+                animationDelay: `${400 + i * 100}ms`,
+                background: 'rgba(255, 255, 255, 0.45)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+              }}
           >
-            <div className="text-3xl mb-2">{feature.icon}</div>
-            <div className="text-sm font-semibold text-[var(--color-text-secondary)]">{feature.label}</div>
+              <div className="text-xl">{feature.icon}</div>
+              <div className="text-xs font-semibold text-[var(--color-text-secondary)]">{feature.label}</div>
           </div>
         ))}
+        </div>
       </div>
-
-      {/* Footer Note - Manrope 400 */}
-      <p className={`mt-12 text-sm font-normal text-[var(--color-text-muted)] ${isLoaded ? 'fade-up delay-500' : 'opacity-0'}`}>
-        Works entirely in your browser • No uploads • Your photos stay private
-      </p>
     </div>
   )
 }

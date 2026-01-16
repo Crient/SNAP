@@ -129,9 +129,7 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
   }
 
   const handleConfirm = () => {
-    if (composedImage) {
-      onConfirm(composedImage)
-    }
+    onConfirm()
   }
 
   const isVertical = orientation?.id === 'vertical'
