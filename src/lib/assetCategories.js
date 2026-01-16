@@ -54,6 +54,11 @@ export function getElementPath(num) {
   return `/assets/elements/el_${String(num).padStart(3, '0')}.png`;
 }
 
+// Generate element thumbnail paths (WebP, 256-384px)
+export function getElementThumbPath(num) {
+  return `/assets/elements/thumbs/el_${String(num).padStart(3, '0')}.webp`;
+}
+
 // ============================================
 // SCENE BACKGROUND CATEGORIES
 // ============================================
@@ -94,6 +99,11 @@ export function getScenesByCategory(category) {
 // Generate scene paths
 export function getScenePath(num) {
   return `/assets/backgrounds/scenes/bgs_${String(num).padStart(3, '0')}.png`;
+}
+
+// Generate scene thumbnail paths (WebP, 256-384px)
+export function getSceneThumbPath(num) {
+  return `/assets/backgrounds/scenes/thumbs/bgs_${String(num).padStart(3, '0')}.webp`;
 }
 
 // ============================================
