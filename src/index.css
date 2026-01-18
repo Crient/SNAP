@@ -565,3 +565,84 @@ body {
   transform: scale(1.1);
   background: #C62828;
 }
+
+/* ============================================
+   RESPONSIVE STYLES
+   ============================================ */
+
+/* Mobile-first responsive adjustments */
+@media (max-width: 767px) {
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Smaller glass effect on mobile */
+  .glass {
+    border-radius: 16px;
+  }
+  
+  /* Bottom sheet styling */
+  .sidebar-panel.rounded-t-3xl {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Thumbnail cards - good touch targets */
+  .thumbnail-card {
+    border-radius: 12px;
+    min-height: 80px;
+  }
+  
+  /* Smaller delete button on mobile for better proportions */
+  .element-delete-btn {
+    top: -14px;
+    right: -14px;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+  
+  /* Hide scrollbar on mobile but keep scrolling */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Touch-friendly buttons */
+  .btn-primary {
+    min-height: 48px;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .glass {
+    border-radius: 16px;
+  }
+}
+
+/* Small desktop adjustments */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  /* Slightly tighter spacing */
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .thumbnail-card {
+    min-height: 44px;
+  }
+  
+  /* Disable hover effects that don't work on touch */
+  .thumbnail-card:hover {
+    transform: none;
+  }
+  
+  /* Make delete button easier to tap */
+  .element-delete-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+}

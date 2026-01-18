@@ -275,7 +275,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [placedElements, setPlacedElements] = useState([])
   const [selectedElementId, setSelectedElementId] = useState(null)
   
-  // No longer need dynamic height - we calculate it from panel requirements
+  // Bottom sheet state for mobile
+  const [sheetSnapIndex, setSheetSnapIndex] = useState(1) // 0=collapsed, 1=half, 2=expanded
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStartY, setDragStartY] = useState(0)
+  const [dragStartHeight, setDragStartHeight] = useState(0)
+  const sheetRef = useRef(null)
   
   // Refs
   const canvasContainerRef = useRef(null)
@@ -286,36 +291,99 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [loadedPhotos, setLoadedPhotos] = useState([])
 
   // ----------------------------------------
+  // RESPONSIVE STATE
+  // ----------------------------------------
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+  const [windowHeight, setWindowHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 800)
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth)
+      setWindowHeight(window.innerHeight)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+  
+  // ----------------------------------------
   // DERIVED VALUES
   // ----------------------------------------
   const gridConfig = getGridConfig(layout, orientation)
   const { rows, cols } = gridConfig
   
   const isVertical = orientation?.id === 'vertical'
+  const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
   
   // Panel grid: ALWAYS 3 columns for all layouts
-  // Vertical layouts: 4 visible rows (3×4 = 12 tiles)
-  // Horizontal layouts: 3 visible rows (3×3 = 9 tiles)
   const panelGridCols = 3
   const panelVisibleRows = isVertical ? 4 : 3
   
-  // Calculate panel height based on visible grid rows
-  // Header: ~120px (tabs + sub-tabs + categories)
-  // Grid: rows × tileSize + gaps
-  // Footer: ~85px (Download + Start Over)
-  // Reduced by ~15% to fit better on screen
-  const PANEL_HEADER_HEIGHT = 120
-  const PANEL_FOOTER_HEIGHT = 85
-  const TILE_SIZE = 72
-  const GRID_GAP = 6
+  // Base dimensions at 100% scale (what we designed for full screen)
+  const BASE_PANEL_HEADER = 120
+  const BASE_PANEL_FOOTER = 85
+  const BASE_TILE_SIZE = 72
+  const BASE_GRID_GAP = 6
+  const BASE_PANEL_WIDTH = 290
+  const BASE_GAP = 24 // gap between canvas and panel
   
-  const panelGridHeight = (panelVisibleRows * TILE_SIZE) + ((panelVisibleRows - 1) * GRID_GAP)
-  const panelTotalHeight = PANEL_HEADER_HEIGHT + panelGridHeight + PANEL_FOOTER_HEIGHT
+  const basePanelGridHeight = (panelVisibleRows * BASE_TILE_SIZE) + ((panelVisibleRows - 1) * BASE_GRID_GAP)
+  const basePanelHeight = BASE_PANEL_HEADER + basePanelGridHeight + BASE_PANEL_FOOTER
+  const baseCanvasHeight = basePanelHeight
+  const baseCanvasWidth = Math.round(baseCanvasHeight * canvasAspect)
   
-  // Canvas height matches panel, width calculated from aspect ratio
-  const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
-  const canvasHeight = panelTotalHeight
-  const canvasWidth = Math.round(canvasHeight * canvasAspect)
+  // Total base width needed for side-by-side layout
+  const baseTotalWidth = baseCanvasWidth + BASE_GAP + BASE_PANEL_WIDTH
+  
+  // Calculate scale factor based on available viewport
+  // Account for padding (32px on each side = 64px total)
+  const availableWidth = windowWidth - 64
+  const availableHeight = windowHeight - 150 // account for header and padding
+  
+  // Determine if we should stack (mobile) or side-by-side
+  // Stack when viewport is too narrow OR when scale would be too small
+  const minUsableScale = 0.55
+  const wouldNeedScale = availableWidth / baseTotalWidth
+  const isMobile = wouldNeedScale < minUsableScale || windowWidth < 700
+  
+  // Calculate final dimensions
+  let finalCanvasWidth, finalCanvasHeight, finalPanelWidth, finalPanelHeight, finalScale
+  
+  if (isMobile) {
+    // MOBILE: Canvas size CHANGES based on sheet position
+    // When sheet is collapsed (index 0): canvas gets BIGGER
+    // When sheet is half (index 1): canvas is medium
+    // When sheet is expanded (index 2): canvas is smaller
+    // This will be calculated dynamically in render based on sheetSnapIndex
+    
+    // Default values (will be overridden in render)
+    finalCanvasWidth = Math.min(availableWidth - 16, 380)
+    finalCanvasHeight = Math.round(finalCanvasWidth / canvasAspect)
+    
+    // Panel dimensions
+    finalPanelWidth = Math.min(480, Math.max(280, windowWidth * 0.75))
+    finalPanelHeight = windowHeight * 0.5
+    finalScale = 1
+  } else {
+    // DESKTOP: Side-by-side layout - scale both proportionally
+    // Calculate how much we need to scale down to fit
+    const widthScale = availableWidth / baseTotalWidth
+    const heightScale = availableHeight / basePanelHeight
+    
+    // Use the smaller scale, but cap between 0.6 and 1.0
+    finalScale = Math.min(1, Math.max(0.6, Math.min(widthScale, heightScale)))
+    
+    // Apply scale to all dimensions
+    finalPanelHeight = Math.round(basePanelHeight * finalScale)
+    finalPanelWidth = Math.round(BASE_PANEL_WIDTH * finalScale)
+    finalCanvasHeight = finalPanelHeight // ALWAYS match panel height
+    finalCanvasWidth = Math.round(finalCanvasHeight * canvasAspect)
+  }
+  
+  // These are used in the render
+  const panelTotalHeight = finalPanelHeight
+  const panelWidth = finalPanelWidth
+  const canvasWidth = finalCanvasWidth
+  const canvasHeight = finalCanvasHeight
 
   // Get all backgrounds for current category (no pagination - scroll only)
   const availableBackgrounds = bgType === BG_TYPES.SCENE
@@ -633,8 +701,518 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // ----------------------------------------
   // RENDER
   // ----------------------------------------
+  
+  // Panel content - shared between side panel and bottom sheet
+  const renderPanelContent = (isBottomSheet = false) => (
+    <>
+      {/* === FIXED HEADER AREA === */}
+      <div className="space-y-2" style={{ padding: isBottomSheet ? '8px 16px 6px 16px' : '12px 10px 6px 10px' }}>
+        {/* Main Tabs - Background / Elements */}
+        <div className="flex gap-1.5 p-1.5 rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
+          <button
+            onClick={() => setActiveTab(TABS.BACKGROUND)}
+            className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === TABS.BACKGROUND
+                ? 'text-[#B8001F] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+            style={activeTab === TABS.BACKGROUND ? { background: 'var(--toggle-active-bg)' } : {}}
+          >
+            Background
+          </button>
+          <button
+            onClick={() => setActiveTab(TABS.ELEMENTS)}
+            className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === TABS.ELEMENTS
+                ? 'text-[#B8001F] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+            style={activeTab === TABS.ELEMENTS ? { background: 'var(--toggle-active-bg)' } : {}}
+          >
+            Elements
+          </button>
+        </div>
+
+        {/* Divider after Level 1 */}
+        <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
+
+        {/* Level 2: Background sub-toggles */}
+        {activeTab === TABS.BACKGROUND && (
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => { setBgType(BG_TYPES.SOLID); setBgCategory('all') }}
+              className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
+                bgType === BG_TYPES.SOLID
+                  ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+              style={bgType !== BG_TYPES.SOLID ? { background: 'var(--toggle-bg)' } : {}}
+            >
+              Solid
+            </button>
+            <button
+              onClick={() => { setBgType(BG_TYPES.SCENE); setBgCategory('all') }}
+              className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
+                bgType === BG_TYPES.SCENE
+                  ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+              style={bgType !== BG_TYPES.SCENE ? { background: 'var(--toggle-bg)' } : {}}
+            >
+              Scenes
+            </button>
+            <button
+              onClick={() => { setBgType(BG_TYPES.PATTERN); setBgCategory('all') }}
+              className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
+                bgType === BG_TYPES.PATTERN
+                  ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+              style={bgType !== BG_TYPES.PATTERN ? { background: 'var(--toggle-bg)' } : {}}
+            >
+              Patterns
+            </button>
+          </div>
+        )}
+
+        {/* Level 2: Elements helper text */}
+        {activeTab === TABS.ELEMENTS && (
+          <p className="text-[9px] text-[var(--color-text-muted)]">
+            Click to add elements to your photo
+          </p>
+        )}
+
+        {/* Divider after Level 2 */}
+        <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
+
+        {/* Level 3: Category chips */}
+        <div 
+          className="flex gap-1.5 overflow-x-auto py-1 scrollbar-hide"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && Object.entries(bgCategories).map(([key, cat]) => (
+            <button
+              key={key}
+              onClick={() => setBgCategory(key)}
+              className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                bgCategory === key
+                  ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+              style={{ 
+                padding: '2px 7px',
+                ...(bgCategory !== key ? { background: 'var(--toggle-bg)' } : {})
+              }}
+            >
+              {cat.name}
+            </button>
+          ))}
+          {activeTab === TABS.ELEMENTS && Object.entries(elementCategories).map(([key, cat]) => (
+            <button
+              key={key}
+              onClick={() => setElementCategory(key)}
+              className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                elementCategory === key
+                  ? 'bg-[#B8001F]/10 text-[#B8001F]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+              style={{ 
+                padding: '2px 7px',
+                ...(elementCategory !== key ? { background: 'var(--toggle-bg)' } : {})
+              }}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* === SCROLLABLE CONTENT AREA === */}
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 py-2" 
+        style={{ paddingLeft: isBottomSheet ? '16px' : '10px', paddingRight: isBottomSheet ? '16px' : '10px' }}
+      >
+        {/* Background grids */}
+        {activeTab === TABS.BACKGROUND && bgType === BG_TYPES.SOLID && (
+          <div 
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${isBottomSheet ? 3 : panelGridCols}, minmax(0, 1fr))` }}
+          >
+            {SOLID_COLORS.map((solid) => (
+              <button
+                key={solid.id}
+                onClick={() => handleSelectBg({ type: BG_TYPES.SOLID, color: solid.color })}
+                className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 
+                            flex items-center justify-center ${
+                  selectedBg?.type === BG_TYPES.SOLID && selectedBg?.color === solid.color
+                    ? 'ring-2 ring-[#B8001F] ring-offset-2 scale-[1.02]'
+                    : 'hover:scale-[1.03]'
+                }`}
+                style={{
+                  backgroundColor: solid.color,
+                  borderColor: solid.light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+                  '--tw-ring-offset-color': 'var(--panel-bg)',
+                }}
+              >
+                <span
+                  className="text-[11px] font-medium"
+                  style={{ color: solid.light ? '#333' : '#fff' }}
+                >
+                  {solid.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && (
+          <div 
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${isBottomSheet ? 3 : panelGridCols}, minmax(0, 1fr))` }}
+          >
+            {availableBackgrounds.map((num) => (
+              <BackgroundThumbnail
+                key={`${bgType}-${num}`}
+                num={num}
+                type={bgType}
+                isSelected={selectedBg?.type === bgType && selectedBg?.num === num}
+                onSelect={handleSelectBg}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Elements grid */}
+        {activeTab === TABS.ELEMENTS && (
+          <div 
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${isBottomSheet ? 3 : panelGridCols}, minmax(0, 1fr))` }}
+          >
+            {availableElements.map((num) => (
+              <ElementThumbnail
+                key={num}
+                num={num}
+                onAdd={addElementCentered}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* === FIXED BOTTOM ACTIONS === */}
+      <div style={{ padding: isBottomSheet ? '8px 16px 16px 16px' : '10px 10px 14px 10px' }}>
+        <button
+          onClick={handleExport}
+          disabled={!loadedPhotos.length}
+          className="w-full py-3 btn-primary text-white font-bold text-base 
+                     shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ borderRadius: '8px' }}
+        >
+          Download
+        </button>
+        <button
+          onClick={onReset}
+          className="w-full py-2 text-sm
+                     text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] 
+                     transition-all font-semibold"
+          style={{ background: 'transparent', marginTop: '8px' }}
+        >
+          Start Over
+        </button>
+      </div>
+    </>
+  )
+  
+  // Mobile: Bottom sheet snap points (in vh)
+  // For vertical layouts: lower default so canvas is more visible
+  // For horizontal layouts: higher default
+  // Collapsed (index 0): just shows grab handle + tabs (Background/Elements)
+  const snapPoints = isVertical 
+    ? [8, 50, 88] // collapsed (tabs only), half, expanded
+    : [8, 58, 88] // collapsed (tabs only), half, expanded
+  
+  const currentSnapHeight = snapPoints[sheetSnapIndex]
+  
+  // Handle drag start
+  const handleDragStart = (e) => {
+    e.preventDefault()
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+    setIsDragging(true)
+    setDragStartY(clientY)
+    setDragStartHeight(currentSnapHeight)
+  }
+  
+  // Handle drag move
+  const handleDragMove = (e) => {
+    if (!isDragging) return
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+    const deltaY = dragStartY - clientY
+    const deltaVh = (deltaY / windowHeight) * 100
+    const newHeight = Math.max(snapPoints[0], Math.min(snapPoints[2], dragStartHeight + deltaVh))
+    
+    if (sheetRef.current) {
+      sheetRef.current.style.height = `${newHeight}vh`
+    }
+  }
+  
+  // Handle drag end - snap to nearest point
+  const handleDragEnd = () => {
+    if (!isDragging) return
+    setIsDragging(false)
+    
+    if (sheetRef.current) {
+      const currentHeight = parseFloat(sheetRef.current.style.height)
+      // Find nearest snap point
+      let nearestIndex = 0
+      let minDistance = Math.abs(currentHeight - snapPoints[0])
+      snapPoints.forEach((point, index) => {
+        const distance = Math.abs(currentHeight - point)
+        if (distance < minDistance) {
+          minDistance = distance
+          nearestIndex = index
+        }
+      })
+      setSheetSnapIndex(nearestIndex)
+      sheetRef.current.style.height = `${snapPoints[nearestIndex]}vh`
+    }
+  }
+  
+  // Handle tap on grab handle - toggle between collapsed and half
+  const handleGrabTap = () => {
+    if (isDragging) return
+    setSheetSnapIndex(prev => prev === 0 ? 1 : 0)
+  }
+  
+  // Calculate dynamic canvas size based on sheet position
+  // Sheet collapsed = bigger canvas, Sheet half = medium canvas
+  // Sheet expanded (max) = canvas stays at "half" size and sits BEHIND the sheet
+  const getCanvasSizeForSheet = () => {
+    if (!isMobile) return { width: canvasWidth, height: canvasHeight }
+    
+    // For max expansion (index 2), use the "half" snap point so canvas doesn't shrink
+    // This allows the canvas to sit behind the sheet at max expansion
+    const effectiveSnapIndex = sheetSnapIndex === 2 ? 1 : sheetSnapIndex
+    const sheetHeightVh = snapPoints[effectiveSnapIndex]
+    
+    // Calculate available height:
+    // 100vh - sheet height - header (~50px) - margin top (10px) - margin bottom (10px)
+    const headerAndMarginsVh = (isVertical ? 70 : 85) / windowHeight * 100 // header + top padding + margins
+    const availableCanvasVh = 100 - sheetHeightVh - headerAndMarginsVh
+    const maxHeight = (windowHeight * availableCanvasVh) / 100
+    
+    // Start with width constraint
+    let w = Math.min(windowWidth - 32, 420)
+    let h = Math.round(w / canvasAspect)
+    
+    // If too tall, constrain by available height
+    if (h > maxHeight) {
+      h = maxHeight
+      w = Math.round(h * canvasAspect)
+    }
+    
+    return { width: w, height: h }
+  }
+  
+  const dynamicCanvasSize = getCanvasSizeForSheet()
+  
+  // Mobile: Bottom sheet layout
+  if (isMobile) {
+    return (
+      <div 
+        className="h-screen w-screen overflow-hidden relative"
+        onMouseMove={handleDragMove}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onTouchMove={handleDragMove}
+        onTouchEnd={handleDragEnd}
+      >
+        {/* Full screen canvas area */}
+        <div 
+          className="absolute inset-0 flex flex-col items-center px-4 pb-4"
+          style={{ paddingTop: isVertical ? '10px' : '27px' }}
+        >
+          {/* Header */}
+          <div 
+            className={`text-center flex-shrink-0 ${isLoaded ? 'fade-up' : 'opacity-0'}`}
+            style={{ marginBottom: isVertical ? '10px' : '12px' }}
+          >
+            <h2 className="text-lg font-bold">Customize</h2>
+            <p className="text-[10px] text-[var(--color-text-muted)]">
+              {layout?.name} • {orientation?.name}
+            </p>
+          </div>
+          
+          {/* Canvas - size CHANGES based on sheet position */}
+          <div 
+            ref={canvasWrapperRef}
+            className={`flex-shrink-0 ${isLoaded ? 'scale-in' : 'opacity-0'}`}
+            style={{
+              width: `${dynamicCanvasSize.width}px`,
+              height: `${dynamicCanvasSize.height}px`,
+              maxWidth: 'calc(100% - 16px)',
+              marginBottom: '10px', // breathing room between canvas and bottom sheet
+              transition: 'width 0.3s ease-out, height 0.3s ease-out',
+            }}
+          >
+            <div
+              ref={canvasContainerRef}
+              className="relative glass rounded-2xl overflow-hidden w-full h-full"
+              onClick={deselectAll}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
+              {/* Background Layer */}
+              <div
+                className="absolute inset-0 transition-opacity duration-200"
+                style={{
+                  ...getBackgroundStyle(),
+                  opacity: bgTransitioning ? 0.7 : 1,
+                }}
+              />
+
+              {/* Photo Grid */}
+              <div className="relative z-10" style={getPhotoGridStyle()}>
+                {photos.slice(0, layout?.shots || 4).map((photo, index) => (
+                  <div
+                    key={index}
+                    className="relative overflow-hidden rounded-lg shadow-md bg-white"
+                  >
+                    <img
+                      src={photo}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Placed Elements */}
+              <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none">
+                <div className="relative w-full h-full pointer-events-auto">
+                  {placedElements.map(element => (
+                    <PlacedElement
+                      key={element.id}
+                      element={element}
+                      containerRef={canvasContainerRef}
+                      isSelected={element.id === selectedElementId}
+                      onSelect={setSelectedElementId}
+                      onDelete={deleteElement}
+                      isExporting={isExporting}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Moveable */}
+              {selectedElementId && !isExporting && (
+                <Moveable
+                  target={`.placed-element[data-element-id="${selectedElementId}"]`}
+                  container={canvasContainerRef.current}
+                  draggable={true}
+                  rotatable={true}
+                  resizable={true}
+                  keepRatio={true}
+                  throttleDrag={0}
+                  throttleRotate={0}
+                  throttleResize={0}
+                  renderDirections={["nw", "ne", "sw", "se"]}
+                  rotationPosition="top"
+                  origin={false}
+                  padding={{ left: 0, top: 0, right: 0, bottom: 0 }}
+                  onDrag={({ target, transform }) => {
+                    target.style.transform = transform
+                  }}
+                  onDragEnd={({ target }) => {
+                    const container = canvasContainerRef.current
+                    if (!container) return
+                    const containerRect = container.getBoundingClientRect()
+                    const elRect = target.getBoundingClientRect()
+                    const centerX = elRect.left - containerRect.left + elRect.width / 2
+                    const centerY = elRect.top - containerRect.top + elRect.height / 2
+                    updateElement(selectedElementId, {
+                      x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
+                      y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                    })
+                  }}
+                  onRotate={({ target, transform }) => {
+                    target.style.transform = transform
+                  }}
+                  onRotateEnd={({ target, lastEvent }) => {
+                    if (!lastEvent) return
+                    updateElement(selectedElementId, { rotation: lastEvent.rotate })
+                  }}
+                  onResize={({ target, width, height, drag }) => {
+                    target.style.width = `${width}px`
+                    target.style.height = `${height}px`
+                    target.style.transform = drag.transform
+                  }}
+                  onResizeEnd={({ target, lastEvent }) => {
+                    if (!lastEvent) return
+                    const container = canvasContainerRef.current
+                    if (!container) return
+                    const containerRect = container.getBoundingClientRect()
+                    const elRect = target.getBoundingClientRect()
+                    const centerX = elRect.left - containerRect.left + elRect.width / 2
+                    const centerY = elRect.top - containerRect.top + elRect.height / 2
+                    const newWidth = parseFloat(target.style.width)
+                    const newScale = newWidth / 80
+                    updateElement(selectedElementId, { 
+                      scale: Math.max(0.3, Math.min(3, newScale)),
+                      x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
+                      y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                    })
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Bottom Sheet Container - centers the sheet */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center pointer-events-none">
+          <div 
+            ref={sheetRef}
+            className={`sidebar-panel rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+            style={{ 
+              width: '75%',
+              maxWidth: '480px',
+              minWidth: '280px',
+              height: `${currentSnapHeight}vh`,
+              transition: isDragging ? 'none' : 'height 0.3s ease-out',
+            }}
+          >
+            {/* Drag handle - supports drag and tap */}
+            <div 
+              className="flex justify-center pt-8 pb-3 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+              onMouseDown={handleDragStart}
+              onTouchStart={handleDragStart}
+              onClick={handleGrabTap}
+            >
+              <div className="w-12 h-1.5 bg-[var(--color-text-muted)] rounded-full opacity-50" />
+            </div>
+            
+            {renderPanelContent(true)}
+          </div>
+        </div>
+        
+        {/* Hidden Export Canvas */}
+        <canvas ref={exportCanvasRef} className="hidden" />
+      </div>
+    )
+  }
+  
+  // Desktop: Side-by-side layout
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ paddingTop: '17px', paddingBottom: '32px' }}>
+    <div 
+      className="min-h-screen flex flex-col items-center px-4 md:px-6"
+      style={{ 
+        paddingTop: '17px', 
+        paddingBottom: '32px',
+        justifyContent: 'center',
+      }}
+    >
       {/* Shared Header - centered above both canvas and sidebar */}
       <div className={`text-center ${isLoaded ? 'fade-up' : 'opacity-0'}`} style={{ marginBottom: '25px' }}>
         <h2 className="text-2xl md:text-3xl font-bold">Customize</h2>
@@ -643,11 +1221,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         </p>
       </div>
 
-      {/* Main Content - Canvas + Sidebar (both use calculated heights) */}
+      {/* Main Content - Canvas + Sidebar */}
       <div 
-        className="flex flex-col lg:flex-row items-start justify-center gap-6"
+        className="flex items-start justify-center flex-row"
+        style={{ gap: `${Math.round(24 * finalScale)}px` }}
       >
-        {/* Left: Canvas Column - height matches panel, width from aspect ratio */}
+        {/* Canvas Column - height ALWAYS matches panel */}
         <div 
           ref={canvasWrapperRef}
           className={`flex-shrink-0 ${isLoaded ? 'scale-in' : 'opacity-0'}`}
@@ -774,231 +1353,18 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           </div>
         </div>
 
-        {/* Right: Tools Panel - Height is calculated, canvas matches it */}
+        {/* Tools Panel - Height ALWAYS matches canvas on desktop */}
         <div 
           className={`flex flex-col ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
           style={{ 
-            width: '290px',
+            width: `${panelWidth}px`,
             height: `${panelTotalHeight}px`,
             flexShrink: 0,
           }}
         >
           {/* Sidebar Panel - uses CSS variables for theme */}
           <div className="sidebar-panel rounded-2xl shadow-lg flex flex-col h-full overflow-hidden">
-            
-            {/* === FIXED HEADER AREA === */}
-            <div className="space-y-2" style={{ padding: '12px 10px 6px 10px' }}>
-              {/* Main Tabs - Background / Elements */}
-              <div className="flex gap-1.5 p-1.5 rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
-                <button
-                  onClick={() => setActiveTab(TABS.BACKGROUND)}
-                  className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === TABS.BACKGROUND
-                      ? 'text-[#B8001F] shadow-sm'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                  }`}
-                  style={activeTab === TABS.BACKGROUND ? { background: 'var(--toggle-active-bg)' } : {}}
-                >
-                  Background
-                </button>
-                <button
-                  onClick={() => setActiveTab(TABS.ELEMENTS)}
-                  className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === TABS.ELEMENTS
-                      ? 'text-[#B8001F] shadow-sm'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                  }`}
-                  style={activeTab === TABS.ELEMENTS ? { background: 'var(--toggle-active-bg)' } : {}}
-                >
-                  Elements
-                </button>
-              </div>
-
-              {/* Divider after Level 1 */}
-              <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
-
-              {/* Level 2: Background sub-toggles (smaller font) */}
-              {activeTab === TABS.BACKGROUND && (
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => { setBgType(BG_TYPES.SOLID); setBgCategory('all') }}
-                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
-                      bgType === BG_TYPES.SOLID
-                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                    }`}
-                    style={bgType !== BG_TYPES.SOLID ? { background: 'var(--toggle-bg)' } : {}}
-                  >
-                    Solid
-                  </button>
-                  <button
-                    onClick={() => { setBgType(BG_TYPES.SCENE); setBgCategory('all') }}
-                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
-                      bgType === BG_TYPES.SCENE
-                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                    }`}
-                    style={bgType !== BG_TYPES.SCENE ? { background: 'var(--toggle-bg)' } : {}}
-                  >
-                    Scenes
-                  </button>
-                  <button
-                    onClick={() => { setBgType(BG_TYPES.PATTERN); setBgCategory('all') }}
-                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
-                      bgType === BG_TYPES.PATTERN
-                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                    }`}
-                    style={bgType !== BG_TYPES.PATTERN ? { background: 'var(--toggle-bg)' } : {}}
-                  >
-                    Patterns
-                  </button>
-                </div>
-              )}
-
-              {/* Level 2: Elements helper text */}
-              {activeTab === TABS.ELEMENTS && (
-                <p className="text-[9px] text-[var(--color-text-muted)]">
-                  Click to add elements to your photo
-                </p>
-              )}
-
-              {/* Divider after Level 2 */}
-              <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
-
-              {/* Level 3: Category chips - smallest font */}
-              <div 
-                className="flex gap-1.5 overflow-x-auto py-1 scrollbar-hide"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && Object.entries(bgCategories).map(([key, cat]) => (
-                  <button
-                    key={key}
-                    onClick={() => setBgCategory(key)}
-                    className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                      bgCategory === key
-                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                    }`}
-                    style={{ 
-                      padding: '2px 7px',
-                      ...(bgCategory !== key ? { background: 'var(--toggle-bg)' } : {})
-                    }}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-                {activeTab === TABS.ELEMENTS && Object.entries(elementCategories).map(([key, cat]) => (
-                  <button
-                    key={key}
-                    onClick={() => setElementCategory(key)}
-                    className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                      elementCategory === key
-                        ? 'bg-[#B8001F]/10 text-[#B8001F]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                    }`}
-                    style={{ 
-                      padding: '2px 7px',
-                      ...(elementCategory !== key ? { background: 'var(--toggle-bg)' } : {})
-                    }}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* === SCROLLABLE CONTENT AREA === */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 py-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
-              {/* Background grids */}
-              {activeTab === TABS.BACKGROUND && bgType === BG_TYPES.SOLID && (
-                <div 
-                  className="grid gap-2"
-                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
-                >
-                  {SOLID_COLORS.map((solid) => (
-                    <button
-                      key={solid.id}
-                      onClick={() => handleSelectBg({ type: BG_TYPES.SOLID, color: solid.color })}
-                      className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 
-                                  flex items-center justify-center ${
-                        selectedBg?.type === BG_TYPES.SOLID && selectedBg?.color === solid.color
-                          ? 'ring-2 ring-[#B8001F] ring-offset-2 scale-[1.02]'
-                          : 'hover:scale-[1.03]'
-                      }`}
-                      style={{
-                        backgroundColor: solid.color,
-                        borderColor: solid.light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
-                        '--tw-ring-offset-color': 'var(--panel-bg)',
-                      }}
-                    >
-                      <span
-                        className="text-[11px] font-medium"
-                        style={{ color: solid.light ? '#333' : '#fff' }}
-                      >
-                        {solid.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && (
-                <div 
-                  className="grid gap-2"
-                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
-                >
-                  {availableBackgrounds.map((num) => (
-                    <BackgroundThumbnail
-                      key={`${bgType}-${num}`}
-                      num={num}
-                      type={bgType}
-                      isSelected={selectedBg?.type === bgType && selectedBg?.num === num}
-                      onSelect={handleSelectBg}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Elements grid */}
-              {activeTab === TABS.ELEMENTS && (
-                <div 
-                  className="grid gap-2"
-                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
-                >
-                  {availableElements.map((num) => (
-                    <ElementThumbnail
-                      key={num}
-                      num={num}
-                      onAdd={addElementCentered}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* === FIXED BOTTOM ACTIONS (inside panel) === */}
-            <div style={{ padding: '10px 10px 14px 10px' }}>
-              <button
-                onClick={handleExport}
-                disabled={!loadedPhotos.length}
-                className="w-full py-3 btn-primary text-white font-bold text-base 
-                           shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
-                           disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ borderRadius: '8px' }}
-              >
-                Download
-              </button>
-              <button
-                onClick={onReset}
-                className="w-full py-2 text-sm
-                           text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] 
-                           transition-all font-semibold"
-                style={{ background: 'transparent', marginTop: '8px' }}
-              >
-                Start Over
-              </button>
-            </div>
+            {renderPanelContent(false)}
           </div>
         </div>
       </div>
