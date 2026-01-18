@@ -115,11 +115,32 @@ function loadImage(src) {
 // ============================================
 const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSelected, onSelect }) {
   const [loaded, setLoaded] = useState(false)
+  const ref = useRef(null)
+  const [isInView, setIsInView] = useState(false)
   
   const fullSrc = type === BG_TYPES.SCENE ? getScenePath(num) : getPatternPath(num)
   const handleClick = useCallback(() => {
     onSelect({ type, num })
   }, [onSelect, type, num])
+  
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true)
+          observer.unobserve(element)
+        }
+      },
+      { rootMargin: '100px', threshold: 0.1 }
+    )
+    
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
   
   const selectedClass = isSelected
     ? 'ring-2 ring-[#B8001F] ring-offset-2 scale-[1.02]'
@@ -129,33 +150,38 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
   if (type === BG_TYPES.PATTERN) {
     return (
       <button
+        ref={ref}
         onClick={handleClick}
         className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
         style={{
-          backgroundImage: `url(${fullSrc})`,
+          backgroundImage: isInView ? `url(${fullSrc})` : 'none',
           backgroundRepeat: 'repeat',
           backgroundSize: '64px 64px',
+          backgroundColor: 'var(--color-surface)',
           '--tw-ring-offset-color': 'var(--panel-bg)',
         }}
       />
     )
   }
 
-  // Scene: use img with cover
+  // Scene: use img with cover - only load when in view
   return (
     <button
+      ref={ref}
       onClick={handleClick}
       className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
       style={{ '--tw-ring-offset-color': 'var(--panel-bg)' }}
     >
-      {!loaded && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse" />}
-      <img
-        src={fullSrc}
-        alt=""
-        className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        loading="lazy"
-        onLoad={() => setLoaded(true)}
-      />
+      {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse" />}
+      {isInView && (
+        <img
+          src={fullSrc}
+          alt=""
+          className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+        />
+      )}
     </button>
   )
 })
@@ -166,27 +192,51 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
 // ============================================
 const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
   const [loaded, setLoaded] = useState(false)
+  const ref = useRef(null)
+  const [isInView, setIsInView] = useState(false)
   
   const fullSrc = getElementPath(num)
   const handleClick = useCallback(() => {
     onAdd(fullSrc)
   }, [onAdd, fullSrc])
+  
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true)
+          observer.unobserve(element)
+        }
+      },
+      { rootMargin: '100px', threshold: 0.1 }
+    )
+    
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <button
+      ref={ref}
       onClick={handleClick}
       className="thumbnail-card relative aspect-square rounded-xl overflow-hidden cursor-pointer
                   transition-all duration-200 hover:scale-105 p-1.5"
     >
-      {!loaded && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse rounded-lg" />}
-      <img
-        src={fullSrc}
-        alt=""
-        className={`w-full h-full object-contain transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        loading="lazy"
-        draggable={false}
-        onLoad={() => setLoaded(true)}
-      />
+      {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse rounded-lg" />}
+      {isInView && (
+        <img
+          src={fullSrc}
+          alt=""
+          className={`w-full h-full object-contain transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          draggable={false}
+          onLoad={() => setLoaded(true)}
+        />
+      )}
     </button>
   )
 })
