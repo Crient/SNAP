@@ -59,15 +59,11 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
     const cells = Array(layout.shots).fill(null)
 
     return (
-      <div 
-        className="w-full aspect-[3/4] rounded-xl md:rounded-2xl 
-                   bg-gradient-to-br from-white/50 to-white/30 
-                   dark:from-white/[0.1] dark:to-white/[0.05]
-                   ring-1 ring-black/[0.04] dark:ring-white/[0.1]
-                   shadow-inner"
+      <div
+        className="relative w-full aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden"
         style={{ padding: '8px' }}
       >
-        <div className="w-full h-full flex flex-col">
+        <div className="relative w-full h-full flex flex-col">
           <div className="flex-1" style={gridStyle}>
             {cells.map((_, i) => (
               <div 

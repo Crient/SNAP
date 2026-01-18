@@ -40,9 +40,9 @@ function Landing({ onStart }) {
           <p 
             className={`text-[14px] md:text-lg lg:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] leading-relaxed text-center ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
           >
-            Your digital photo booth experience.
+            Your digital photobooth.
             <br />
-            <span className="font-bold text-[#B8001F]">Capture moments, create memories.</span>
+            <span className="font-bold text-[#B8001F]">Pick a layout, decorate, save.</span>
           </p>
 
           {/* Start Button */}
@@ -74,10 +74,10 @@ function Landing({ onStart }) {
         {/* Features Preview - Always 4 columns in a single row */}
         <div className={`grid grid-cols-4 gap-2 md:gap-3 w-full max-w-md md:max-w-xl ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}>
           {[
-            { icon: '🎨', label: 'Fun Layouts' },
-            { icon: '✨', label: 'Stickers & Text' },
-            { icon: '🪄', label: 'AI Effects' },
-            { icon: '📥', label: 'Easy Download' },
+            { icon: '🎨', label: 'Pick Layout' },
+            { icon: '✨', label: 'Add Stickers' },
+            { icon: '🪄', label: 'Apply Effects' },
+            { icon: '📥', label: 'Export and Save' },
           ].map((feature, i) => (
             <div 
               key={feature.label}
@@ -93,7 +93,7 @@ function Landing({ onStart }) {
               }}
             >
               <div className="text-base md:text-xl">{feature.icon}</div>
-              <div className="text-[8px] md:text-xs font-semibold text-[var(--color-text-secondary)]">{feature.label}</div>
+              <div className="feature-chip-label text-[8px] md:text-xs font-semibold">{feature.label}</div>
             </div>
           ))}
         </div>
