@@ -34,9 +34,6 @@
   --toggle-bg: rgba(0, 0, 0, 0.04);
   --toggle-active-bg: #FFFFFF;
   
-  /* Editor Layout */
-  --editor-height: 540px;
-  
   /* Orb colors for light mode - bold and visible */
   --orb-plum: rgba(60, 20, 50, 0.35);      /* Large, deep plum for depth */
   --orb-red: rgba(184, 0, 31, 0.30);        /* Medium, brand presence */
@@ -546,17 +543,17 @@ body {
 /* Element delete button */
 .element-delete-btn {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
+  top: -22px;
+  right: -22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #E53935;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: bold;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);

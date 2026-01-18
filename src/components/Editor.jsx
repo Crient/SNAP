@@ -275,8 +275,11 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [placedElements, setPlacedElements] = useState([])
   const [selectedElementId, setSelectedElementId] = useState(null)
   
+  // No longer need dynamic height - we calculate it from panel requirements
+  
   // Refs
   const canvasContainerRef = useRef(null)
+  const canvasWrapperRef = useRef(null)
   const exportCanvasRef = useRef(null)
   
   // Loaded images cache
@@ -289,6 +292,30 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const { rows, cols } = gridConfig
   
   const isVertical = orientation?.id === 'vertical'
+  
+  // Panel grid: ALWAYS 3 columns for all layouts
+  // Vertical layouts: 4 visible rows (3×4 = 12 tiles)
+  // Horizontal layouts: 3 visible rows (3×3 = 9 tiles)
+  const panelGridCols = 3
+  const panelVisibleRows = isVertical ? 4 : 3
+  
+  // Calculate panel height based on visible grid rows
+  // Header: ~120px (tabs + sub-tabs + categories)
+  // Grid: rows × tileSize + gaps
+  // Footer: ~85px (Download + Start Over)
+  // Reduced by ~15% to fit better on screen
+  const PANEL_HEADER_HEIGHT = 120
+  const PANEL_FOOTER_HEIGHT = 85
+  const TILE_SIZE = 72
+  const GRID_GAP = 6
+  
+  const panelGridHeight = (panelVisibleRows * TILE_SIZE) + ((panelVisibleRows - 1) * GRID_GAP)
+  const panelTotalHeight = PANEL_HEADER_HEIGHT + panelGridHeight + PANEL_FOOTER_HEIGHT
+  
+  // Canvas height matches panel, width calculated from aspect ratio
+  const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
+  const canvasHeight = panelTotalHeight
+  const canvasWidth = Math.round(canvasHeight * canvasAspect)
 
   // Get all backgrounds for current category (no pagination - scroll only)
   const availableBackgrounds = bgType === BG_TYPES.SCENE
@@ -325,6 +352,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       .then(setLoadedPhotos)
       .catch(console.error)
   }, [photos])
+
 
 
   // ----------------------------------------
@@ -606,29 +634,32 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // RENDER
   // ----------------------------------------
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ paddingTop: '17px', paddingBottom: '32px' }}>
       {/* Shared Header - centered above both canvas and sidebar */}
-      <div className={`text-center mb-6 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
+      <div className={`text-center ${isLoaded ? 'fade-up' : 'opacity-0'}`} style={{ marginBottom: '25px' }}>
         <h2 className="text-2xl md:text-3xl font-bold">Customize</h2>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           {layout?.name} • {orientation?.name}
         </p>
       </div>
 
-      {/* Main Content - Canvas + Sidebar (aligned heights) */}
-      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch justify-center gap-6">
-        {/* Left: Canvas Preview */}
-        <div className={`flex-1 max-w-2xl w-full flex flex-col ${isLoaded ? 'scale-in' : 'opacity-0'}`}>
-          {/* Canvas Container - uses shared height variable */}
+      {/* Main Content - Canvas + Sidebar (both use calculated heights) */}
+      <div 
+        className="flex flex-col lg:flex-row items-start justify-center gap-6"
+      >
+        {/* Left: Canvas Column - height matches panel, width from aspect ratio */}
+        <div 
+          ref={canvasWrapperRef}
+          className={`flex-shrink-0 ${isLoaded ? 'scale-in' : 'opacity-0'}`}
+          style={{
+            width: `${canvasWidth}px`,
+            height: `${canvasHeight}px`,
+          }}
+        >
+          {/* Canvas Container - fills the calculated dimensions */}
           <div
             ref={canvasContainerRef}
-            className="relative glass rounded-2xl overflow-hidden mx-auto w-full"
-            style={{
-              aspectRatio: `${orientation?.width} / ${orientation?.height}`,
-              maxWidth: isVertical ? '380px' : '100%',
-              height: 'var(--editor-height)',
-              maxHeight: 'var(--editor-height)',
-            }}
+            className="relative glass rounded-2xl overflow-hidden w-full h-full"
             onClick={deselectAll}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -743,19 +774,25 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           </div>
         </div>
 
-        {/* Right: Tools Panel - Fixed height scaffold */}
-        <div className={`w-full lg:w-[380px] flex flex-col ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
-             style={{ height: 'var(--editor-height)' }}>
+        {/* Right: Tools Panel - Height is calculated, canvas matches it */}
+        <div 
+          className={`flex flex-col ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+          style={{ 
+            width: '290px',
+            height: `${panelTotalHeight}px`,
+            flexShrink: 0,
+          }}
+        >
           {/* Sidebar Panel - uses CSS variables for theme */}
-          <div className="sidebar-panel rounded-2xl shadow-lg flex flex-col h-full">
+          <div className="sidebar-panel rounded-2xl shadow-lg flex flex-col h-full overflow-hidden">
             
             {/* === FIXED HEADER AREA === */}
-            <div className="p-4 pb-3 space-y-3">
+            <div className="space-y-2" style={{ padding: '12px 10px 6px 10px' }}>
               {/* Main Tabs - Background / Elements */}
               <div className="flex gap-1.5 p-1.5 rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
                 <button
                   onClick={() => setActiveTab(TABS.BACKGROUND)}
-                  className={`flex-1 h-10 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
                     activeTab === TABS.BACKGROUND
                       ? 'text-[#B8001F] shadow-sm'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -766,7 +803,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                 </button>
                 <button
                   onClick={() => setActiveTab(TABS.ELEMENTS)}
-                  className={`flex-1 h-10 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
                     activeTab === TABS.ELEMENTS
                       ? 'text-[#B8001F] shadow-sm'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -777,12 +814,15 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                 </button>
               </div>
 
-              {/* Background sub-toggles (always rendered for stable height) */}
+              {/* Divider after Level 1 */}
+              <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
+
+              {/* Level 2: Background sub-toggles (smaller font) */}
               {activeTab === TABS.BACKGROUND && (
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
                     onClick={() => { setBgType(BG_TYPES.SOLID); setBgCategory('all') }}
-                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
                       bgType === BG_TYPES.SOLID
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -793,7 +833,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   </button>
                   <button
                     onClick={() => { setBgType(BG_TYPES.SCENE); setBgCategory('all') }}
-                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
                       bgType === BG_TYPES.SCENE
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -804,7 +844,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   </button>
                   <button
                     onClick={() => { setBgType(BG_TYPES.PATTERN); setBgCategory('all') }}
-                    className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${
                       bgType === BG_TYPES.PATTERN
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -816,25 +856,34 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                 </div>
               )}
 
-              {/* Elements helper text */}
+              {/* Level 2: Elements helper text */}
               {activeTab === TABS.ELEMENTS && (
-                <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                <p className="text-[9px] text-[var(--color-text-muted)]">
                   Click to add elements to your photo
                 </p>
               )}
 
-              {/* Category chips row - horizontal scroll */}
-              <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
+              {/* Divider after Level 2 */}
+              <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
+
+              {/* Level 3: Category chips - smallest font */}
+              <div 
+                className="flex gap-1.5 overflow-x-auto py-1 scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && Object.entries(bgCategories).map(([key, cat]) => (
                   <button
                     key={key}
                     onClick={() => setBgCategory(key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                    className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                       bgCategory === key
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
                     }`}
-                    style={bgCategory !== key ? { background: 'var(--toggle-bg)' } : {}}
+                    style={{ 
+                      padding: '2px 7px',
+                      ...(bgCategory !== key ? { background: 'var(--toggle-bg)' } : {})
+                    }}
                   >
                     {cat.name}
                   </button>
@@ -843,12 +892,15 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   <button
                     key={key}
                     onClick={() => setElementCategory(key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                    className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                       elementCategory === key
                         ? 'bg-[#B8001F]/10 text-[#B8001F]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
                     }`}
-                    style={elementCategory !== key ? { background: 'var(--toggle-bg)' } : {}}
+                    style={{ 
+                      padding: '2px 7px',
+                      ...(elementCategory !== key ? { background: 'var(--toggle-bg)' } : {})
+                    }}
                   >
                     {cat.name}
                   </button>
@@ -857,10 +909,13 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             </div>
 
             {/* === SCROLLABLE CONTENT AREA === */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 py-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
               {/* Background grids */}
               {activeTab === TABS.BACKGROUND && bgType === BG_TYPES.SOLID && (
-                <div className="grid grid-cols-3 gap-3">
+                <div 
+                  className="grid gap-2"
+                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
+                >
                   {SOLID_COLORS.map((solid) => (
                     <button
                       key={solid.id}
@@ -889,7 +944,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               )}
 
               {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && (
-                <div className="grid grid-cols-3 gap-3">
+                <div 
+                  className="grid gap-2"
+                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
+                >
                   {availableBackgrounds.map((num) => (
                     <BackgroundThumbnail
                       key={`${bgType}-${num}`}
@@ -904,7 +962,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
 
               {/* Elements grid */}
               {activeTab === TABS.ELEMENTS && (
-                <div className="grid grid-cols-4 gap-2.5">
+                <div 
+                  className="grid gap-2"
+                  style={{ gridTemplateColumns: `repeat(${panelGridCols}, minmax(0, 1fr))` }}
+                >
                   {availableElements.map((num) => (
                     <ElementThumbnail
                       key={num}
@@ -917,22 +978,23 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             </div>
 
             {/* === FIXED BOTTOM ACTIONS (inside panel) === */}
-            <div className="p-4 pt-3 space-y-2.5 border-t border-[var(--card-border)]">
+            <div style={{ padding: '10px 10px 14px 10px' }}>
               <button
                 onClick={handleExport}
                 disabled={!loadedPhotos.length}
-                className="w-full py-3.5 rounded-xl btn-primary text-white font-bold text-base 
+                className="w-full py-3 btn-primary text-white font-bold text-base 
                            shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
                            disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ borderRadius: '8px' }}
               >
                 Download
               </button>
               <button
                 onClick={onReset}
-                className="w-full py-2.5 rounded-xl text-sm
+                className="w-full py-2 text-sm
                            text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] 
                            transition-all font-semibold"
-                style={{ background: 'var(--toggle-bg)' }}
+                style={{ background: 'transparent', marginTop: '8px' }}
               >
                 Start Over
               </button>
