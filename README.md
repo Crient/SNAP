@@ -25,13 +25,21 @@ SNAP is an in-browser photobooth that captures multi-shot layouts, lets you deco
 - Browser APIs: MediaDevices (camera), Canvas 2D (preview/export), localStorage/sessionStorage
 
 ## Architecture
-- **Stage flow (`App.jsx`):** Central stage machine (landing → layout → orientation → capture → preview → editor) holding layout, orientation, captured photos, and edited image state. Data flows forward; back actions reset the right slices.
-- **Layout config:** `LAYOUTS`, `ORIENTATIONS`, and `getGridConfig` define shot counts, grid dimensions, and camera aspect overrides per layout/orientation.
+- **Stage flow (`App.jsx`):** Central stage machine (landing → layout → orientation → capture → preview → editor) holding layout, orientation, and captured photos.
+- **Layout config (`lib/layouts.js`):** `LAYOUTS`, `ORIENTATIONS`, and `getGridConfig` define shot counts, grid dimensions, and camera aspect overrides per layout/orientation.
 - **Camera handling (`useCamera`, `PhotoBooth`):** Manages permissions, mobile-friendly constraints, stream lifecycle, mirrored preview, ring-light overlays, countdown/flash, crop calculation to preserve aspect ratio, and per-shot capture to data URLs.
-- **Composition (`Preview`):** Canvas renders the selected grid with padding/gaps, rounds corners/shadows, and produces a composed preview image.
+- **Composition (`Preview`):** Canvas renders the selected grid with padding/gaps, rounded corners/shadows, and produces a composed preview image.
 - **Editor (`Editor`):** Responsive canvas + tool panel (side panel on desktop, snapping bottom sheet on mobile). Background selection (solid/scene/pattern), element catalog from `lib/assetCategories.js`, element placement stored as percentages for consistent export, and PNG export via an off-screen canvas. Uses Moveable for transform handles and throttles background transitions.
 - **Theming & chrome:** `ThemeProvider` persists dark/light choice; `AnimatedBackground` supplies the gradient/blobs layer; `ThemeToggle` swaps themes. Styles live in `index.css` (Tailwind @imports plus custom tokens and utility classes).
 - **Assets & tooling:** Static assets under `public/assets` (backgrounds/scenes, backgrounds/patterns, elements). `scripts/compress-images.js` is an optional Sharp-based optimizer for those assets. `vite.config.js` splits vendor/moveable chunks for caching.
+
+## Getting started
+```bash
+npm install
+npm run dev     # start locally
+npm run lint    # lint check
+npm run build   # production build
+```
 
 ## Project structure
 ```
@@ -50,7 +58,9 @@ src/
 │   ├── useCamera.js
 │   ├── useLazyImage.js      # IntersectionObserver helper (currently unused)
 │   └── useTheme.jsx
-├── lib/assetCategories.js   # Asset catalogs + paths
+├── lib/
+│   ├── assetCategories.js   # Asset catalogs + paths
+│   └── layouts.js           # Layout/orientation configs + grid helper
 ├── index.css                # Tailwind layer + custom design tokens/utilities
 └── main.jsx
 public/assets/
