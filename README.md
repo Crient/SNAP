@@ -1,8 +1,6 @@
-# SNAP 📸
+# SNAP 
 
 SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets users decorate them with backgrounds and stickers, and exports a finished strip — all locally, with no backend required.
-
----
 
 ## Features
 
