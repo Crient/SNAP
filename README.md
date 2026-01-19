@@ -1,8 +1,11 @@
-# SNAP 📸  
+# SNAP 📸
 
 SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets users decorate them with backgrounds and stickers, and exports a finished strip — all locally, with no backend required.
 
+---
+
 ## Features
+
 ### Capture
 - Multi-shot layouts: 2×2, 3×1, 3×2
 - Orientation-aware exports (vertical and horizontal)
@@ -29,6 +32,8 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 
 Landing → Layout → Orientation → Capture → Preview → Edit → Export
 
+---
+
 ## Tech Stack
 
 - React 19 with Vite 7
@@ -47,6 +52,8 @@ Landing → Layout → Orientation → Capture → Preview → Edit → Export
 npm install
 npm run dev
 ```
+
+---
 
 ## Live Demo
 https://snapdigital.vercel.app
@@ -97,6 +104,8 @@ vite.config.js
 - Canvas used for both preview rendering and final export
 - Editor stores element positions as percentages for consistent scaling
 
+---
+
 ## Privacy
 All processing stays entirely in the browser.
 Camera streams, captures, previews, and exports never leave the device.
@@ -106,6 +115,8 @@ Local persistence is limited to:
 - One-time camera reminder flag (sessionStorage)
 
 No analytics, tracking, or network requests are performed.
+
+---
 
 ## Future Work
 - Text tool with font and color controls

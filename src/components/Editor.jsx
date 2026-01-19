@@ -9,8 +9,11 @@ import {
   getScenesByCategory,
   getPatternsByCategory,
   getElementPath,
+  getElementThumbPath,
   getScenePath,
+  getSceneThumbPath,
   getPatternPath,
+  getPatternThumbPath,
 } from '../lib/assetCategories'
 
 // Layout spacing constants (increased ~12% for more background visibility)
@@ -118,7 +121,7 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
   const ref = useRef(null)
   const [isInView, setIsInView] = useState(false)
   
-  const fullSrc = type === BG_TYPES.SCENE ? getScenePath(num) : getPatternPath(num)
+  const thumbSrc = type === BG_TYPES.SCENE ? getSceneThumbPath(num) : getPatternThumbPath(num)
   const handleClick = useCallback(() => {
     onSelect({ type, num })
   }, [onSelect, type, num])
@@ -154,7 +157,7 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
         onClick={handleClick}
         className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
         style={{
-          backgroundImage: isInView ? `url(${fullSrc})` : 'none',
+          backgroundImage: isInView ? `url(${thumbSrc})` : 'none',
           backgroundRepeat: 'repeat',
           backgroundSize: '64px 64px',
           backgroundColor: 'var(--color-surface)',
@@ -175,7 +178,7 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
       {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse" />}
       {isInView && (
         <img
-          src={fullSrc}
+          src={thumbSrc}
           alt=""
           className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
@@ -196,6 +199,7 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
   const [isInView, setIsInView] = useState(false)
   
   const fullSrc = getElementPath(num)
+  const thumbSrc = getElementThumbPath(num)
   const handleClick = useCallback(() => {
     onAdd(fullSrc)
   }, [onAdd, fullSrc])
@@ -229,7 +233,7 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
       {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse rounded-lg" />}
       {isInView && (
         <img
-          src={fullSrc}
+          src={thumbSrc}
           alt=""
           className={`w-full h-full object-contain transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
@@ -621,6 +625,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const handleExport = async () => {
     if (!exportCanvasRef.current || !loadedPhotos.length) return
 
+    const isIOSMobileSafari = () => {
+      if (typeof navigator === 'undefined') return false
+      const ua = navigator.userAgent || ''
+      const isIOS = /iP(hone|od|ad)/.test(ua)
+      const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua)
+      return isIOS && isSafari
+    }
+
+    const supportsDownloadAttr = () => {
+      const link = document.createElement('a')
+      return typeof link.download !== 'undefined'
+    }
+
     // Hide selection UI during export
     setIsExporting(true)
     setSelectedElementId(null)
@@ -736,14 +753,26 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     }
     ctx.restore()
 
-    // Download
-    const link = document.createElement('a')
-    link.download = `snap-photo-${Date.now()}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
+    // Download / open fallback for iOS Safari
+    const dataUrl = canvas.toDataURL('image/png')
+    const canDownload = supportsDownloadAttr() && !isIOSMobileSafari()
+
+    if (canDownload) {
+      const link = document.createElement('a')
+      link.download = `snap-photo-${Date.now()}.png`
+      link.href = dataUrl
+      link.click()
+    } else {
+      // iOS Safari fallback: open in new tab so users can long-press/save
+      const opened = window.open(dataUrl, '_blank', 'noopener,noreferrer')
+      if (!opened) {
+        // Fallback if popup blocked: navigate current tab
+        window.location.href = dataUrl
+      }
+    }
 
     setIsExporting(false)
-    onComplete?.(canvas.toDataURL('image/png'))
+    onComplete?.(dataUrl)
   }
 
   // ----------------------------------------
