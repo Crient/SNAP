@@ -42,7 +42,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
     const cells = Array(selectedLayout.shots).fill(null)
 
     return (
-      <div className={`${containerClass} bg-gradient-to-br from-white/50 to-white/30 dark:from-white/[0.1] dark:to-white/[0.05] ring-1 ring-black/[0.04] dark:ring-white/[0.1] rounded-md md:rounded-lg p-1 md:p-1.5 mx-auto flex flex-col shadow-inner`}>
+      <div className={`${containerClass} rounded-md md:rounded-lg p-1 md:p-1.5 mx-auto flex flex-col`}>
         <div className="flex-1 rounded" style={gridStyle}>
           {cells.map((_, i) => (
             <div 
@@ -79,7 +79,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
             <button
               key={orientation.id}
               onClick={() => onSelect(orientation)}
-              className="group relative text-center p-4 md:p-5 rounded-2xl md:rounded-3xl
+              className="group relative text-center p-4 md:p-5 pb-[calc(1rem+2px)] md:pb-[calc(1.25rem+2px)] rounded-2xl md:rounded-3xl
                          bg-white/40 dark:bg-white/[0.08]
                          backdrop-blur-xl backdrop-saturate-150
                          border border-white/50 dark:border-white/10
@@ -108,7 +108,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
                 <h3 className="font-bold text-sm md:text-lg mb-0.5 md:mb-1">{orientation.name}</h3>
                 <p className="text-[10px] md:text-sm text-[var(--color-text-secondary)] font-medium">{orientation.description}</p>
                 
-                <span className="inline-block mt-2 md:mt-3 text-[9px] md:text-xs text-[var(--color-brand-primary)] font-semibold">
+                <span className="orientation-grid-label inline-block mt-2 md:mt-3 text-[9px] md:text-xs text-[var(--color-brand-primary)] font-semibold">
                   {grid.cols} × {grid.rows} grid
                 </span>
               </div>

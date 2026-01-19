@@ -5,7 +5,8 @@ import { useState, useEffect, useRef } from 'react'
  * Only loads image when it's about to enter the viewport
  */
 function useLazyImage(src, options = {}) {
-  const [isInView, setIsInView] = useState(false)
+  const supportsIO = typeof window !== 'undefined' && 'IntersectionObserver' in window
+  const [isInView, setIsInView] = useState(!supportsIO)
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState(false)
   const ref = useRef(null)
@@ -17,8 +18,7 @@ function useLazyImage(src, options = {}) {
     if (!element) return
 
     // Check if IntersectionObserver is supported
-    if (!('IntersectionObserver' in window)) {
-      setIsInView(true)
+    if (!supportsIO) {
       return
     }
 
@@ -37,7 +37,7 @@ function useLazyImage(src, options = {}) {
     return () => {
       observer.disconnect()
     }
-  }, [rootMargin, threshold])
+  }, [rootMargin, threshold, supportsIO])
 
   // Preload image when in view
   useEffect(() => {

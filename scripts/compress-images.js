@@ -13,6 +13,7 @@
 
 import fs from 'fs'
 import path from 'path'
+import process from 'process'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -24,12 +25,13 @@ async function compressImages() {
   let sharp
   try {
     sharp = (await import('sharp')).default
-  } catch (e) {
+  } catch (err) {
     console.log('❌ Sharp is not installed. Installing now...')
     console.log('\nRun this command first:')
     console.log('  npm install sharp --save-dev\n')
     console.log('Then run this script again:')
     console.log('  node scripts/compress-images.js\n')
+    console.log(`Missing dependency error: ${err.message}`)
     process.exit(1)
   }
 

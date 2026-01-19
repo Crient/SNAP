@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
-import { getGridConfig } from '../App'
+import { getGridConfig } from '../lib/layouts'
 import Moveable from 'react-moveable'
 import {
   ELEMENT_CATEGORIES,
@@ -247,17 +247,18 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
 // - will-change + touch-action for smooth dragging
 // - Includes delete X button when selected (hidden during export)
 // ============================================
-const PlacedElement = memo(function PlacedElement({ element, containerRef, isSelected, onSelect, onDelete, isExporting }) {
+const PlacedElement = memo(function PlacedElement({ element, containerRect, isSelected, onSelect, onDelete, isExporting }) {
   const size = element.scale * 80
   
   // Calculate pixel position from percentage (transform-only approach)
   const getTransformStyle = () => {
-    if (!containerRef?.current) {
+    const width = containerRect?.width || 0
+    const height = containerRect?.height || 0
+    if (!width || !height) {
       return `translate(-50%, -50%) rotate(${element.rotation}deg)`
     }
-    const rect = containerRef.current.getBoundingClientRect()
-    const px = (element.x / 100) * rect.width
-    const py = (element.y / 100) * rect.height
+    const px = (element.x / 100) * width
+    const py = (element.y / 100) * height
     return `translate(${px - size/2}px, ${py - size/2}px) rotate(${element.rotation}deg)`
   }
 
@@ -324,6 +325,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [elementCategory, setElementCategory] = useState('all')
   const [placedElements, setPlacedElements] = useState([])
   const [selectedElementId, setSelectedElementId] = useState(null)
+  const [containerRect, setContainerRect] = useState({ width: 0, height: 0 })
+  const [canvasEl, setCanvasEl] = useState(null)
   
   // Bottom sheet state for mobile
   const [sheetSnapIndex, setSheetSnapIndex] = useState(1) // 0=collapsed, 1=half, 2=expanded
@@ -744,11 +747,6 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   }
 
   // ----------------------------------------
-  // SELECTED ELEMENT (for controls)
-  // ----------------------------------------
-  const selectedElement = placedElements.find(el => el.id === selectedElementId)
-
-  // ----------------------------------------
   // RENDER
   // ----------------------------------------
   
@@ -756,9 +754,9 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const renderPanelContent = (isBottomSheet = false) => (
     <>
       {/* === FIXED HEADER AREA === */}
-      <div className="space-y-2" style={{ padding: isBottomSheet ? '8px 16px 6px 16px' : '12px 10px 6px 10px' }}>
+      <div className="space-y-2" style={{ padding: isBottomSheet ? '12px 16px 6px 16px' : '12px 10px 6px 10px' }}>
         {/* Main Tabs - Background / Elements */}
-        <div className="flex gap-1.5 p-1.5 rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
+        <div className="flex gap-1.5 p-1.5 pt-[7px] rounded-xl" style={{ background: 'var(--toggle-bg)' }}>
           <button
             onClick={() => setActiveTab(TABS.BACKGROUND)}
             className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
@@ -1065,6 +1063,20 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   }
   
   const dynamicCanvasSize = getCanvasSizeForSheet()
+
+  useEffect(() => {
+    const updateRect = () => {
+      const el = canvasContainerRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      setContainerRect({ width: rect.width, height: rect.height })
+      setCanvasEl(el)
+    }
+
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [dynamicCanvasSize.width, dynamicCanvasSize.height, canvasWidth, canvasHeight, isMobile, sheetSnapIndex])
   
   // Mobile: Bottom sheet layout
   if (isMobile) {
@@ -1088,7 +1100,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             style={{ marginBottom: isVertical ? '10px' : '12px' }}
           >
             <h2 className="text-lg font-bold">Customize</h2>
-            <p className="text-[10px] text-[var(--color-text-muted)]">
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)]">
               {layout?.name} • {orientation?.name}
             </p>
           </div>
@@ -1145,7 +1157,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     <PlacedElement
                       key={element.id}
                       element={element}
-                      containerRef={canvasContainerRef}
+                      containerRect={containerRect}
                       isSelected={element.id === selectedElementId}
                       onSelect={setSelectedElementId}
                       onDelete={deleteElement}
@@ -1159,7 +1171,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               {selectedElementId && !isExporting && (
                 <Moveable
                   target={`.placed-element[data-element-id="${selectedElementId}"]`}
-                  container={canvasContainerRef.current}
+                  container={canvasEl}
                   draggable={true}
                   rotatable={true}
                   resizable={true}
@@ -1189,7 +1201,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   onRotate={({ target, transform }) => {
                     target.style.transform = transform
                   }}
-                  onRotateEnd={({ target, lastEvent }) => {
+                  onRotateEnd={({ lastEvent }) => {
                     if (!lastEvent) return
                     updateElement(selectedElementId, { rotation: lastEvent.rotate })
                   }}
@@ -1326,7 +1338,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   <PlacedElement
                     key={element.id}
                     element={element}
-                    containerRef={canvasContainerRef}
+                    containerRect={containerRect}
                     isSelected={element.id === selectedElementId}
                     onSelect={setSelectedElementId}
                     onDelete={deleteElement}
@@ -1337,14 +1349,14 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             </div>
 
             {/* Moveable for selected element - transform-only, single source of truth */}
-            {selectedElementId && !isExporting && (
-              <Moveable
-                target={`.placed-element[data-element-id="${selectedElementId}"]`}
-                container={canvasContainerRef.current}
-                draggable={true}
-                rotatable={true}
-                resizable={true}
-                keepRatio={true}
+              {selectedElementId && !isExporting && (
+                <Moveable
+                  target={`.placed-element[data-element-id="${selectedElementId}"]`}
+                  container={canvasEl}
+                  draggable={true}
+                  rotatable={true}
+                  resizable={true}
+                  keepRatio={true}
                 throttleDrag={0}
                 throttleRotate={0}
                 throttleResize={0}
@@ -1372,7 +1384,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                 onRotate={({ target, transform }) => {
                   target.style.transform = transform
                 }}
-                onRotateEnd={({ target, lastEvent }) => {
+                onRotateEnd={({ lastEvent }) => {
                   if (!lastEvent) return
                   updateElement(selectedElementId, { rotation: lastEvent.rotate })
                 }}

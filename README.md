@@ -1,58 +1,72 @@
-# SNAP - Digital Photo Booth 📸
+# SNAP
 
-A web-based digital photo booth experience that runs entirely in your browser.
+SNAP is an in-browser photobooth that captures multi-shot layouts, lets you decorate them with backgrounds and stickers, and exports a finished strip—no backend required.
 
-## Features
+## Features (implemented)
+- **Layouts & orientations:** 2×2 grid (4 shots), 3×1 grid (3 shots with orientation-aware arrangement), and 3×2 grid (6 shots). Vertical (1080×1920) or horizontal (1920×1080) sizes; auto-selects orientation when only one is valid.
+- **Camera capture:** Front-facing mirrored preview with countdown per shot, flash overlay, ring-light glow (warm/neutral/cool), progress dots, captured thumbnail stack, cancel/reset, and a one-time camera-clean reminder stored in sessionStorage. Handles loading and permission errors with retry/back actions.
+- **Preview composition:** Canvas-based assembly that places each shot into the chosen grid so the preview matches export dimensions.
+- **Editing & decoration:** Backgrounds via 18 solid colors plus scene (30) and pattern (15) collections filtered by category; lazy-loaded thumbnails and cross-faded background changes. Stickers from 100 element assets (chrome, y2k, cute, retro) added with one click or drag/drop; drag, rotate, resize (ratio-locked), and delete via Moveable controls.
+- **Export & reset:** Download a PNG at the selected orientation with backgrounds, photos, and elements applied; start-over control clears the session.
+- **Experience polish:** Dark mode by default with toggle persisted to localStorage, animated gradient backdrop, responsive editor with a snapping bottom sheet on mobile, and glassmorphic theming.
 
-- 🎨 **Multiple Layouts** - 2×2 Grid, Vertical Strip, Double Strip
-- 📷 **Live Camera Preview** - Front-facing camera with real-time preview
-- ⏱️ **Countdown Timer** - Automatic countdown before each photo
-- 🖼️ **Photo Composition** - Canvas-based high-resolution image generation
-- ✨ **Stickers & Text** - Drag, scale, and rotate overlays
-- 📥 **Easy Export** - Download your creation as PNG
+## User flow
+1) Start from the landing screen.  
+2) Choose a layout; pick orientation when more than one is allowed (auto-selected otherwise).  
+3) Capture the required shots with the countdown, ring light, and progress indicators; retry or go back if needed.  
+4) Review the composed preview; retake or continue.  
+5) Customize backgrounds and stickers in the editor; drag/resize/rotate elements in place.  
+6) Download the final PNG or start over to run another session.
 
-## Tech Stack
+## Tech stack
+- React 19 with Vite 7
+- Tailwind CSS 4 plus custom CSS variables/utilities
+- react-moveable for drag/rotate/resize controls
+- Browser APIs: MediaDevices (camera), Canvas 2D (preview/export), localStorage/sessionStorage
 
-- React 19
-- Tailwind CSS 4
-- Vite
-- Browser Web APIs (MediaDevices, Canvas)
+## Architecture
+- **Stage flow (`App.jsx`):** Central stage machine (landing → layout → orientation → capture → preview → editor) holding layout, orientation, captured photos, and edited image state. Data flows forward; back actions reset the right slices.
+- **Layout config:** `LAYOUTS`, `ORIENTATIONS`, and `getGridConfig` define shot counts, grid dimensions, and camera aspect overrides per layout/orientation.
+- **Camera handling (`useCamera`, `PhotoBooth`):** Manages permissions, mobile-friendly constraints, stream lifecycle, mirrored preview, ring-light overlays, countdown/flash, crop calculation to preserve aspect ratio, and per-shot capture to data URLs.
+- **Composition (`Preview`):** Canvas renders the selected grid with padding/gaps, rounds corners/shadows, and produces a composed preview image.
+- **Editor (`Editor`):** Responsive canvas + tool panel (side panel on desktop, snapping bottom sheet on mobile). Background selection (solid/scene/pattern), element catalog from `lib/assetCategories.js`, element placement stored as percentages for consistent export, and PNG export via an off-screen canvas. Uses Moveable for transform handles and throttles background transitions.
+- **Theming & chrome:** `ThemeProvider` persists dark/light choice; `AnimatedBackground` supplies the gradient/blobs layer; `ThemeToggle` swaps themes. Styles live in `index.css` (Tailwind @imports plus custom tokens and utility classes).
+- **Assets & tooling:** Static assets under `public/assets` (backgrounds/scenes, backgrounds/patterns, elements). `scripts/compress-images.js` is an optional Sharp-based optimizer for those assets. `vite.config.js` splits vendor/moveable chunks for caching.
 
-## Getting Started
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Then open http://localhost:5173 in your browser.
-
-## Project Structure
-
+## Project structure
 ```
 src/
+├── App.jsx
 ├── components/
-│   ├── Landing.jsx      # Welcome screen with start button
-│   ├── LayoutSelector.jsx # Choose photo layout
-│   ├── PhotoBooth.jsx   # Camera preview and capture
-│   ├── Preview.jsx      # Review composed photos
-│   └── Editor.jsx       # Add stickers and text
+│   ├── AnimatedBackground.jsx
+│   ├── Editor.jsx
+│   ├── Landing.jsx
+│   ├── LayoutSelector.jsx
+│   ├── OrientationSelector.jsx
+│   ├── PhotoBooth.jsx
+│   ├── Preview.jsx
+│   └── ThemeToggle.jsx
 ├── hooks/
-│   └── useCamera.js     # Camera access management
-├── App.jsx              # Main app with stage management
-├── main.jsx             # Entry point
-└── index.css            # Global styles with Tailwind
+│   ├── useCamera.js
+│   ├── useLazyImage.js      # IntersectionObserver helper (currently unused)
+│   └── useTheme.jsx
+├── lib/assetCategories.js   # Asset catalogs + paths
+├── index.css                # Tailwind layer + custom design tokens/utilities
+└── main.jsx
+public/assets/
+├── backgrounds/
+│   ├── scenes/
+│   └── patterns/
+└── elements/
+scripts/
+└── compress-images.js
+vite.config.js
 ```
 
-## Browser Requirements
-
-- Modern browser with WebRTC support
-- Camera permissions enabled
-- Works best on Chrome, Firefox, Safari, Edge
-
 ## Privacy
+All processing stays in the browser: camera streams, captures, previews, and exports never leave the device. Local persistence is limited to theme preference (localStorage) and a one-time camera reminder flag (sessionStorage). No analytics or network calls are made.
 
-All processing happens locally in your browser. No photos are uploaded to any server.
+## Future work
+- Text/label tool with font and color controls.
+- Multiple export presets (e.g., square or print-ready sizes) and quality settings.
+- Session persistence for re-editing, plus camera/source selection for multi-camera setups.
