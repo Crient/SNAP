@@ -1,6 +1,28 @@
-# SNAP 
+# SNAP
 
 SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets users decorate them with backgrounds and stickers, and exports a finished strip — all locally, with no backend required.
+
+**6 layouts • 100+ stickers • 50+ backgrounds • Zero backend**
+
+**[Live Demo](https://snapdigital.vercel.app)**
+
+---
+
+![SNAP Preview](./public/assets/preview-landing.png)
+
+<p align="center">
+  <img src="./public/assets/preview-landingpng" width="48%" />
+  <img src="./public/assets/preview-flow.png" width="48%" />
+  <img src="./public/assets/preview-editor.png" width="48%" />
+</p>
+
+---
+
+## Why I Built This
+
+Inspired by classic photobooths and Snapchat's camera-first philosophy, I wanted to create a modern, web-based alternative that respects user privacy. Every photo stays on your device — no uploads, no tracking, no servers.
+
+---
 
 ## Features
 
@@ -27,10 +49,10 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 ---
 
 ## User Flow
-
+```
 Landing → Layout → Orientation → Capture → Preview → Edit → Export
+```
 
----
 
 ## Tech Stack
 
@@ -45,16 +67,17 @@ Landing → Layout → Orientation → Capture → Preview → Edit → Export
 ---
 
 ## Getting Started
-
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/snap.git
+cd snap
+
+# Install dependencies
 npm install
+
+# Start development server
 npm run dev
 ```
-
----
-
-## Live Demo
-https://snapdigital.vercel.app
 
 ---
 
@@ -89,13 +112,10 @@ public/assets/
 
 scripts/
 └── compress-images.js
-
-vite.config.js
 ```
 
----
-
 ## Architecture Notes
+
 - Central stage flow manages transitions between capture, preview, and editing
 - Layout and orientation behavior defined through configuration helpers
 - Camera lifecycle and permissions handled via a dedicated hook
@@ -105,19 +125,24 @@ vite.config.js
 ---
 
 ## Privacy
-All processing stays entirely in the browser.
-Camera streams, captures, previews, and exports never leave the device.
+
+All processing stays entirely in the browser. Camera streams, captures, previews, and exports never leave the device.
 
 Local persistence is limited to:
 - Theme preference (localStorage)
 - One-time camera reminder flag (sessionStorage)
 
-No analytics, tracking, or network requests are performed.
+**No analytics, tracking, or network requests are performed.**
 
----
+
 
 ## Future Work
+
 - Text tool with font and color controls
 - Additional export presets and quality options
 - Session persistence for re-editing
 - Multi-camera and input source selection
+
+---
+
+MIT © Gechleng Lim
