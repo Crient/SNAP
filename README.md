@@ -2,10 +2,6 @@
 
 SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets users decorate them with backgrounds and stickers, and exports a finished strip — all locally, with no backend required.
 
-**6 layouts • 100+ stickers • 50+ backgrounds • Zero backend**
-
-**[Live Demo](https://snapdigital.vercel.app)**
-
 ---
 <p align="center">
   <img src="./public/assets/preview-landing.png" width="32%" />
@@ -75,6 +71,12 @@ npm install
 # Start development server
 npm run dev
 ```
+
+## Live Demo
+**https://snapdigital.vercel.app**
+
+---
+
 
 ---
 
