@@ -11,9 +11,9 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 ![SNAP Preview](./public/assets/preview-landing.png)
 
 <p align="center">
-  <img src="./public/assets/preview-landingpng" width="48%" />
-  <img src="./public/assets/preview-flow.png" width="48%" />
-  <img src="./public/assets/preview-editor.png" width="48%" />
+  <img src="./public/assets/preview-landing.png" width="32%" />
+  <img src="./public/assets/preview-flow.png" width="32%" />
+  <img src="./public/assets/preview-editor.png" width="32%" />
 </p>
 
 ---
