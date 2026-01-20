@@ -7,9 +7,6 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 **[Live Demo](https://snapdigital.vercel.app)**
 
 ---
-
-![SNAP Preview](./public/assets/preview-landing.png)
-
 <p align="center">
   <img src="./public/assets/preview-landing.png" width="32%" />
   <img src="./public/assets/preview-flow.png" width="32%" />
