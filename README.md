@@ -17,7 +17,7 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 
 ## Why I Built This
 
-Inspired by classic photobooths and Snapchat's camera-first philosophy, I wanted to create a modern, web-based alternative that respects user privacy. Every photo stays on your device — no uploads, no tracking, no servers.
+I've always loved photobooths. Wanted a digital version with elements and backgrounds that I actually vibe with, so I made my own :)
 
 ---
 
