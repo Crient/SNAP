@@ -75,8 +75,6 @@ npm run dev
 ## Live Demo
 **https://snapdigital.vercel.app**
 
----
-
 
 ---
 
@@ -144,4 +142,4 @@ Local persistence is limited to:
 
 ---
 
-MIT © Gechleng Lim
+MIT © 2026 Gechleng Lim
