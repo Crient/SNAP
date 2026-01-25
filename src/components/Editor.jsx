@@ -625,12 +625,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const handleExport = async () => {
     if (!exportCanvasRef.current || !loadedPhotos.length) return
 
-    const isIOSMobileSafari = () => {
+    const isIOSDevice = () => {
       if (typeof navigator === 'undefined') return false
       const ua = navigator.userAgent || ''
-      const isIOS = /iP(hone|od|ad)/.test(ua)
-      const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua)
-      return isIOS && isSafari
+      // iPad on iOS 13+ reports as MacIntel, so also check touch points
+      const isIOS = /iP(hone|od|ad)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      return isIOS
     }
 
     const supportsDownloadAttr = () => {
@@ -638,141 +638,178 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       return typeof link.download !== 'undefined'
     }
 
+    const isIOS = isIOSDevice()
+    // For iOS browsers, open a blank tab immediately so the later navigation
+    // isn't blocked as a popup once async rendering finishes.
+    const iosDownloadTab = isIOS ? window.open('', '_blank') : null
+
     // Hide selection UI during export
     setIsExporting(true)
     setSelectedElementId(null)
     
-    // Wait for UI to settle
-    await new Promise(r => setTimeout(r, 50))
+    try {
+      // Wait for UI to settle
+      await new Promise(r => setTimeout(r, 50))
 
-    const canvas = exportCanvasRef.current
-    const ctx = canvas.getContext('2d')
+      const canvas = exportCanvasRef.current
+      const ctx = canvas.getContext('2d')
 
-    const canvasWidth = orientation.width
-    const canvasHeight = orientation.height
+      const canvasWidth = orientation.width
+      const canvasHeight = orientation.height
 
-    canvas.width = canvasWidth
-    canvas.height = canvasHeight
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
 
-    // LAYER 1: Background
-    if (selectedBg?.type === BG_TYPES.SOLID) {
-      // Solid color background
-      ctx.fillStyle = selectedBg.color
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-    } else if (selectedBg && loadedBgUrl) {
-      try {
-        const bgImg = await loadImage(loadedBgUrl)
+      // LAYER 1: Background
+      if (selectedBg?.type === BG_TYPES.SOLID) {
+        // Solid color background
+        ctx.fillStyle = selectedBg.color
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+      } else if (selectedBg && loadedBgUrl) {
+        try {
+          const bgImg = await loadImage(loadedBgUrl)
 
-        if (selectedBg.type === BG_TYPES.SCENE) {
-          // Scene: cover behavior
-          drawImageCover(ctx, bgImg, 0, 0, canvasWidth, canvasHeight)
-        } else {
-          // Pattern: repeat/tile at 240px (matching preview)
-          const pattern = ctx.createPattern(bgImg, 'repeat')
-          ctx.save()
-          // Scale pattern to match 240px preview tile size
-          const scaleFactor = 240 / bgImg.width * (canvasWidth / 400) // Adjust for canvas size
-          ctx.scale(scaleFactor, scaleFactor)
-          ctx.fillStyle = pattern
-          ctx.fillRect(0, 0, canvasWidth / scaleFactor, canvasHeight / scaleFactor)
-          ctx.restore()
+          if (selectedBg.type === BG_TYPES.SCENE) {
+            // Scene: cover behavior
+            drawImageCover(ctx, bgImg, 0, 0, canvasWidth, canvasHeight)
+          } else {
+            // Pattern: repeat/tile at 240px (matching preview)
+            const pattern = ctx.createPattern(bgImg, 'repeat')
+            ctx.save()
+            // Scale pattern to match 240px preview tile size
+            const scaleFactor = 240 / bgImg.width * (canvasWidth / 400) // Adjust for canvas size
+            ctx.scale(scaleFactor, scaleFactor)
+            ctx.fillStyle = pattern
+            ctx.fillRect(0, 0, canvasWidth / scaleFactor, canvasHeight / scaleFactor)
+            ctx.restore()
+          }
+        } catch (err) {
+          console.error('Failed to load background:', err)
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight)
         }
-      } catch (err) {
-        console.error('Failed to load background:', err)
+      } else {
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(0, 0, canvasWidth, canvasHeight)
       }
-    } else {
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-    }
 
-    // LAYER 2: Photos (use spacing constants for pixel-match)
-    const padding = Math.min(canvasWidth, canvasHeight) * LAYOUT_PADDING_RATIO
-    const gap = Math.min(canvasWidth, canvasHeight) * LAYOUT_GAP_RATIO
+      // LAYER 2: Photos (use spacing constants for pixel-match)
+      const padding = Math.min(canvasWidth, canvasHeight) * LAYOUT_PADDING_RATIO
+      const gap = Math.min(canvasWidth, canvasHeight) * LAYOUT_GAP_RATIO
 
-    const availableWidth = canvasWidth - (padding * 2) - (gap * (cols - 1))
-    const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1))
+      const availableWidth = canvasWidth - (padding * 2) - (gap * (cols - 1))
+      const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1))
 
-    const photoWidth = availableWidth / cols
-    const photoHeight = availableHeight / rows
-    const cornerRadius = Math.min(photoWidth, photoHeight) * 0.02
+      const photoWidth = availableWidth / cols
+      const photoHeight = availableHeight / rows
+      const cornerRadius = Math.min(photoWidth, photoHeight) * 0.02
 
-    loadedPhotos.forEach((img, index) => {
-      if (!img || index >= layout.shots) return
+      loadedPhotos.forEach((img, index) => {
+        if (!img || index >= layout.shots) return
 
-      const col = index % cols
-      const row = Math.floor(index / cols)
+        const col = index % cols
+        const row = Math.floor(index / cols)
 
-      const x = padding + (col * (photoWidth + gap))
-      const y = padding + (row * (photoHeight + gap))
+        const x = padding + (col * (photoWidth + gap))
+        const y = padding + (row * (photoHeight + gap))
 
-      // Shadow
-      ctx.save()
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.15)'
-      ctx.shadowBlur = 12
-      ctx.shadowOffsetY = 4
-      ctx.fillStyle = '#ffffff'
-      roundRect(ctx, x, y, photoWidth, photoHeight, cornerRadius)
-      ctx.fill()
-      ctx.restore()
-
-      // Photo with rounded corners
-      ctx.save()
-      roundRect(ctx, x, y, photoWidth, photoHeight, cornerRadius)
-      ctx.clip()
-      drawImageCover(ctx, img, x, y, photoWidth, photoHeight)
-      ctx.restore()
-    })
-
-    // LAYER 3: Elements (clipped to frame)
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(0, 0, canvasWidth, canvasHeight)
-    ctx.clip()
-    
-    for (const element of placedElements) {
-      try {
-        const elImg = await loadImage(element.src)
-        
-        const x = (element.x / 100) * canvasWidth
-        const y = (element.y / 100) * canvasHeight
-        
-        // Match preview element size
-        const baseSize = Math.min(canvasWidth, canvasHeight) * 0.08
-        const size = baseSize * element.scale
-
+        // Shadow
         ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate((element.rotation * Math.PI) / 180)
-        ctx.drawImage(elImg, -size / 2, -size / 2, size, size)
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)'
+        ctx.shadowBlur = 12
+        ctx.shadowOffsetY = 4
+        ctx.fillStyle = '#ffffff'
+        roundRect(ctx, x, y, photoWidth, photoHeight, cornerRadius)
+        ctx.fill()
         ctx.restore()
-      } catch (err) {
-        console.error('Failed to load element:', err)
+
+        // Photo with rounded corners
+        ctx.save()
+        roundRect(ctx, x, y, photoWidth, photoHeight, cornerRadius)
+        ctx.clip()
+        drawImageCover(ctx, img, x, y, photoWidth, photoHeight)
+        ctx.restore()
+      })
+
+      // LAYER 3: Elements (clipped to frame)
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, canvasWidth, canvasHeight)
+      ctx.clip()
+      
+      for (const element of placedElements) {
+        try {
+          const elImg = await loadImage(element.src)
+          
+          const x = (element.x / 100) * canvasWidth
+          const y = (element.y / 100) * canvasHeight
+          
+          // Match preview element size
+          const baseSize = Math.min(canvasWidth, canvasHeight) * 0.08
+          const size = baseSize * element.scale
+
+          ctx.save()
+          ctx.translate(x, y)
+          ctx.rotate((element.rotation * Math.PI) / 180)
+          ctx.drawImage(elImg, -size / 2, -size / 2, size, size)
+          ctx.restore()
+        } catch (err) {
+          console.error('Failed to load element:', err)
+        }
       }
-    }
-    ctx.restore()
+      ctx.restore()
 
-    // Download / open fallback for iOS Safari
-    const dataUrl = canvas.toDataURL('image/png')
-    const canDownload = supportsDownloadAttr() && !isIOSMobileSafari()
+      const blob = await new Promise((resolve, reject) => {
+        if (canvas.toBlob) {
+          canvas.toBlob((result) => {
+            if (result) {
+              resolve(result)
+            } else {
+              reject(new Error('Export failed'))
+            }
+          }, 'image/png')
+        } else {
+          // Older Safari fallback: dataURL -> fetch -> blob
+          fetch(canvas.toDataURL('image/png'))
+            .then(res => res.blob())
+            .then(resolve)
+            .catch(reject)
+        }
+      })
 
-    if (canDownload) {
-      const link = document.createElement('a')
-      link.download = `snap-photo-${Date.now()}.png`
-      link.href = dataUrl
-      link.click()
-    } else {
-      // iOS Safari fallback: open in new tab so users can long-press/save
-      const opened = window.open(dataUrl, '_blank', 'noopener,noreferrer')
-      if (!opened) {
-        // Fallback if popup blocked: navigate current tab
-        window.location.href = dataUrl
+      const blobUrl = URL.createObjectURL(blob)
+      const canDownload = supportsDownloadAttr() && !isIOS
+
+      if (canDownload) {
+        const link = document.createElement('a')
+        link.download = `snap-photo-${Date.now()}.png`
+        link.href = blobUrl
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else if (iosDownloadTab) {
+        iosDownloadTab.location.href = blobUrl
+      } else {
+        window.location.href = blobUrl
       }
-    }
 
-    setIsExporting(false)
-    onComplete?.(dataUrl)
+      // Only compute data URL if someone is listening for completion
+      if (onComplete) {
+        const reader = new FileReader()
+        reader.onloadend = () => onComplete(reader.result)
+        reader.readAsDataURL(blob)
+      }
+
+      // Give the browser time to start navigation before revoking
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+    } catch (err) {
+      if (iosDownloadTab && !iosDownloadTab.closed) {
+        iosDownloadTab.close()
+      }
+      console.error('Failed to export image:', err)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // ----------------------------------------
