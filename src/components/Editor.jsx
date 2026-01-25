@@ -250,8 +250,10 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
 // - will-change + touch-action for smooth dragging
 // - Includes delete X button when selected (hidden during export)
 // ============================================
+const ELEMENT_BASE_SIZE_PX = 80
+
 const PlacedElement = memo(function PlacedElement({ element, containerRect, isSelected, onSelect, onDelete, isExporting }) {
-  const size = element.scale * 80
+  const size = element.scale * ELEMENT_BASE_SIZE_PX
   
   // Calculate pixel position from percentage (transform-only approach)
   const getTransformStyle = () => {
@@ -589,6 +591,28 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     setSelectedElementId(null)
   }, [])
 
+  // Keyboard delete for selected element
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedElementId) return
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+
+      const target = e.target
+      const isEditable = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      )
+      if (isEditable) return
+
+      e.preventDefault()
+      deleteElement(selectedElementId)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedElementId, deleteElement])
+
 
   // ----------------------------------------
   // BACKGROUND STYLE FOR PREVIEW (crossfade layer)
@@ -766,9 +790,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           const x = (element.x / 100) * canvasWidth
           const y = (element.y / 100) * canvasHeight
           
-          // Match preview element size
-          const baseSize = Math.min(canvasWidth, canvasHeight) * 0.08
-          const size = baseSize * element.scale
+        // Match preview element size/position by scaling from preview pixels
+        const previewWidth = containerRect?.width || 0
+        const exportScale = previewWidth ? (canvasWidth / previewWidth) : 1
+        const size = ELEMENT_BASE_SIZE_PX * element.scale * exportScale
 
           ctx.save()
           ctx.translate(x, y)
@@ -1304,7 +1329,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     const centerX = elRect.left - containerRect.left + elRect.width / 2
                     const centerY = elRect.top - containerRect.top + elRect.height / 2
                     const newWidth = parseFloat(target.style.width)
-                    const newScale = newWidth / 80
+                    const newScale = newWidth / ELEMENT_BASE_SIZE_PX
                     updateElement(selectedElementId, { 
                       scale: Math.max(0.3, Math.min(3, newScale)),
                       x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
