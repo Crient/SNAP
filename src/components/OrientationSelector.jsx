@@ -65,7 +65,9 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
         <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-3">
           Choose Orientation
         </h2>
-        <p className="text-[var(--color-text-secondary)] font-semibold text-sm md:text-base">
+        <p className="text-[var(--color-text-secondary)] font-semibold text-sm md:text-base"
+        style={{ marginBottom: '10px' }}
+>
           {selectedLayout.name} • {selectedLayout.shots} photos
         </p>
       </div>
@@ -108,7 +110,8 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
                 <h3 className="font-bold text-sm md:text-lg mb-0.5 md:mb-1">{orientation.name}</h3>
                 <p className="text-[10px] md:text-sm text-[var(--color-text-secondary)] font-medium">{orientation.description}</p>
                 
-                <span className="orientation-grid-label inline-block mt-2 md:mt-3 text-[9px] md:text-xs text-[var(--color-brand-primary)] font-semibold">
+                <span className="orientation-grid-label inline-block mt-2 md:mt-3 text-[9px] md:text-xs text-[var(--color-brand-primary)] font-semibold"
+                style={{ paddingBottom: '100px' }}>
                   {grid.cols} × {grid.rows} grid
                 </span>
               </div>

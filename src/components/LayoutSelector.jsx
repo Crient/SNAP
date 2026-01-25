@@ -61,7 +61,7 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
     return (
       <div
         className="relative w-full aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden"
-        style={{ padding: '8px' }}
+        style={{ padding: '17px' }}
       >
         <div className="relative w-full h-full flex flex-col">
           <div className="flex-1" style={gridStyle}>
@@ -89,7 +89,9 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
         <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-4 tracking-tight">
           Choose Your Layout
         </h2>
-        <p className="text-[var(--color-text-secondary)] text-sm md:text-lg font-semibold">
+        <p className="text-[var(--color-text-secondary)] text-sm md:text-lg font-semibold"
+        style={{ marginBottom: '10px' }}
+>
           Pick how your photos will be arranged
         </p>
       </div>
@@ -138,7 +140,7 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
                 </div>
                 
                 {/* Photo count */}
-                <span className="text-[9px] md:text-sm font-semibold text-[var(--color-brand-primary)]">
+                <span className="text-[9px] md:text-sm font-semibold text-[var(--color-brand-primary)]" style={{ paddingBottom: '10px' }}>
                   {layout.shots} photos
                 </span>
               </div>

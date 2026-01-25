@@ -5,7 +5,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
  * Handles permissions, stream management, and cleanup
  * Optimized for mobile performance
  */
-function useCamera() {
+function useCamera({ aspectRatio } = {}) {
   const [stream, setStream] = useState(null)
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -27,24 +27,57 @@ function useCamera() {
         throw new Error('Camera access is not supported in this browser.')
       }
 
-      // Use lower resolution on mobile for better performance
-      const constraints = {
+      const isPortrait = typeof aspectRatio === 'number' ? aspectRatio < 1 : false
+      const sizePresets = isPortrait
+        ? [
+            [1080, 1920],
+            [720, 1280],
+            [540, 960],
+          ]
+        : [
+            [1920, 1080],
+            [1280, 720],
+            [960, 540],
+          ]
+
+      const makePreset = (width, height, withAspect) => ({
         video: {
-          facingMode: 'user', // Front camera
-          width: { ideal: isMobile ? 640 : 1280 },
-          height: { ideal: isMobile ? 480 : 720 },
-          // Lower frame rate on mobile saves battery and improves performance
-          frameRate: { ideal: isMobile ? 24 : 30 },
+          facingMode: 'user',
+          width: { ideal: width },
+          height: { ideal: height },
+          ...(withAspect && aspectRatio ? { aspectRatio } : {}),
+          frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
+      })
+
+      // Try high → medium (with aspect) → fallback (no aspect)
+      const presets = [
+        makePreset(sizePresets[0][0], sizePresets[0][1], true),
+        makePreset(sizePresets[1][0], sizePresets[1][1], true),
+        makePreset(sizePresets[2][0], sizePresets[2][1], false),
+      ]
+
+      let lastError = null
+      for (const constraints of presets) {
+        try {
+          const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+          streamRef.current = mediaStream
+          setStream(mediaStream)
+          setIsLoading(false)
+          return mediaStream
+        } catch (err) {
+          lastError = err
+          // If user blocked permission, stop retrying
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            throw err
+          }
+          // Otherwise, try next preset
+        }
       }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-
-      streamRef.current = mediaStream
-      setStream(mediaStream)
-      setIsLoading(false)
-      return mediaStream
+      // If all presets failed, throw last error to show a message
+      throw lastError || new Error('Failed to access camera.')
     } catch (err) {
       setIsLoading(false)
       
@@ -66,7 +99,7 @@ function useCamera() {
       setError(errorMessage)
       return null
     }
-  }, [isMobile])
+  }, [aspectRatio, isMobile])
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {

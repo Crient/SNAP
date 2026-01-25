@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { getGridConfig } from '../lib/layouts'
+import { getSpacingRatios } from '../lib/spacing'
 import Moveable from 'react-moveable'
 import {
   ELEMENT_CATEGORIES,
@@ -16,10 +17,6 @@ import {
   getPatternThumbPath,
 } from '../lib/assetCategories'
 
-// Layout spacing constants (increased ~12% for more background visibility)
-const LAYOUT_PADDING_RATIO = 0.05  // was 0.03
-const LAYOUT_GAP_RATIO = 0.025     // was 0.015
-
 // ============================================
 // CONSTANTS
 // ============================================
@@ -33,6 +30,8 @@ const BG_TYPES = {
   SCENE: 'scene',
   PATTERN: 'pattern',
 }
+
+const PREVIEW_CARD_RADIUS_PX = 8
 
 // Solid color options (18 curated colors, no PNG assets)
 // Order: Neutrals → Pastels → Bold → Dark
@@ -370,6 +369,22 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   
   const isVertical = orientation?.id === 'vertical'
   const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
+
+  const { paddingRatio, gapRatio } = getSpacingRatios(orientation)
+
+  const getPreviewPhotoSize = () => {
+    if (!containerRect.width || !containerRect.height) return null
+    const padX = containerRect.width * paddingRatio
+    const padY = containerRect.height * paddingRatio
+    const gapX = containerRect.width * gapRatio
+    const gapY = containerRect.height * gapRatio
+    const availableWidth = containerRect.width - (padX * 2) - (gapX * (cols - 1))
+    const availableHeight = containerRect.height - (padY * 2) - (gapY * (rows - 1))
+    return {
+      width: availableWidth / cols,
+      height: availableHeight / rows,
+    }
+  }
   
   // Panel grid: ALWAYS 3 columns for all layouts
   const panelGridCols = 3
@@ -608,13 +623,17 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // PHOTO GRID LAYOUT CALCULATION (uses spacing constants)
   // ----------------------------------------
   const getPhotoGridStyle = () => {
-    // ~5% padding, ~2.5% gap for more background visibility
+    const padX = containerRect.width * paddingRatio
+    const padY = containerRect.height * paddingRatio
+    const gapX = containerRect.width * gapRatio
+    const gapY = containerRect.height * gapRatio
     return {
       display: 'grid',
       gridTemplateColumns: `repeat(${cols}, 1fr)`,
       gridTemplateRows: `repeat(${rows}, 1fr)`,
-      gap: '2.5%',
-      padding: '5%',
+      columnGap: `${gapX}px`,
+      rowGap: `${gapY}px`,
+      padding: `${padY}px ${padX}px`,
       height: '100%',
     }
   }
@@ -640,9 +659,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
 
       const canvas = exportCanvasRef.current
       const ctx = canvas.getContext('2d')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
 
-      const canvasWidth = orientation.width
-      const canvasHeight = orientation.height
+      const deviceScale = Math.min(Math.max((window.devicePixelRatio || 1), 1.5), 2)
+      const baseWidth = orientation?.width || 1080
+      const baseHeight = orientation?.height || 1920
+      const minPhotoScale = loadedPhotos.length
+        ? Math.min(...loadedPhotos.filter(Boolean).map(img => img.width / baseWidth))
+        : 1
+      const exportScale = Math.max(1, Math.min(deviceScale, minPhotoScale || 1))
+
+      const canvasWidth = Math.round(baseWidth * exportScale)
+      const canvasHeight = Math.round(baseHeight * exportScale)
 
       canvas.width = canvasWidth
       canvas.height = canvasHeight
@@ -681,15 +710,21 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       }
 
       // LAYER 2: Photos (use spacing constants for pixel-match)
-      const padding = Math.min(canvasWidth, canvasHeight) * LAYOUT_PADDING_RATIO
-      const gap = Math.min(canvasWidth, canvasHeight) * LAYOUT_GAP_RATIO
+      const paddingX = canvasWidth * paddingRatio
+      const paddingY = canvasHeight * paddingRatio
+      const gapX = canvasWidth * gapRatio
+      const gapY = canvasHeight * gapRatio
 
-      const availableWidth = canvasWidth - (padding * 2) - (gap * (cols - 1))
-      const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1))
+      const availableWidth = canvasWidth - (paddingX * 2) - (gapX * (cols - 1))
+      const availableHeight = canvasHeight - (paddingY * 2) - (gapY * (rows - 1))
 
       const photoWidth = availableWidth / cols
       const photoHeight = availableHeight / rows
-      const cornerRadius = Math.min(photoWidth, photoHeight) * 0.02
+      const previewSize = getPreviewPhotoSize()
+      const cornerScale = previewSize ? (photoWidth / previewSize.width) : 1
+      const cornerRadius = previewSize
+        ? PREVIEW_CARD_RADIUS_PX * cornerScale
+        : Math.min(photoWidth, photoHeight) * 0.02
 
       loadedPhotos.forEach((img, index) => {
         if (!img || index >= layout.shots) return
@@ -697,8 +732,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         const col = index % cols
         const row = Math.floor(index / cols)
 
-        const x = padding + (col * (photoWidth + gap))
-        const y = padding + (row * (photoHeight + gap))
+        const x = paddingX + (col * (photoWidth + gapX))
+        const y = paddingY + (row * (photoHeight + gapY))
 
         // Shadow
         ctx.save()

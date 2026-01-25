@@ -35,8 +35,13 @@ const RING_LIGHT_TONES = {
 function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
+
+  const targetAspectRatio = (layout?.cameraAspectByOrientation && orientation?.id)
+    ? layout.cameraAspectByOrientation[orientation.id]
+    : (orientation?.aspectRatio || (9 / 16))
+  const isCameraHorizontal = targetAspectRatio > 1
   
-  const { stream, error, isLoading, startCamera, stopCamera } = useCamera()
+  const { stream, error, isLoading, startCamera, stopCamera } = useCamera({ aspectRatio: targetAspectRatio })
   
   const [captureState, setCaptureState] = useState(CAPTURE_STATES.READY)
   const [countdown, setCountdown] = useState(3)
@@ -75,17 +80,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
         return 'Get Ready!'
     }
   })()
-
-  // Camera aspect ratio - check for layout-specific override first
-  const getCameraAspectRatio = () => {
-    if (layout?.cameraAspectByOrientation && orientation?.id) {
-      return layout.cameraAspectByOrientation[orientation.id]
-    }
-    return orientation?.aspectRatio || (9 / 16)
-  }
-  
-  const targetAspectRatio = getCameraAspectRatio()
-  const isCameraHorizontal = targetAspectRatio > 1
 
   // Initialize camera on mount
   useEffect(() => {
@@ -146,9 +140,16 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
 
     const { srcX, srcY, srcWidth, srcHeight } = cropRegion
 
-    const exportWidth = orientation?.width || 1080
-    const photoExportWidth = Math.round(exportWidth * 0.8)
-    const photoExportHeight = Math.round(photoExportWidth / targetAspectRatio)
+    const captureScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.3), 2)
+    const targetWidth = (orientation?.width || video.videoWidth || 1080) * captureScale
+    const targetHeight = targetWidth / targetAspectRatio
+
+    const sourceWidth = video.videoWidth || targetWidth
+    const sourceHeight = video.videoHeight || targetHeight
+
+    const scale = Math.min(1, sourceWidth / targetWidth, sourceHeight / targetHeight)
+    const photoExportWidth = Math.round(targetWidth * scale)
+    const photoExportHeight = Math.round(targetHeight * scale)
 
     canvas.width = photoExportWidth
     canvas.height = photoExportHeight
@@ -163,7 +164,9 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     )
     ctx.restore()
 
-    return canvas.toDataURL('image/jpeg', 0.92)
+    // High-quality capture to preserve detail before compositing
+    // PNG avoids JPEG softness; source is already cropped to target AR
+    return canvas.toDataURL('image/png')
   }, [calculateCropRegion, orientation, targetAspectRatio])
 
   // Start capture sequence
@@ -222,22 +225,26 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="glass rounded-3xl p-8 max-w-md text-center">
-          <div className="text-6xl mb-4">😢</div>
-          <h2 className="text-2xl font-bold mb-3">Camera Access Denied</h2>
-          <p className="text-[var(--color-text-secondary)] font-medium mb-6">{error}</p>
-          <button
-            onClick={() => startCamera()}
-            className="px-6 py-3 rounded-xl bg-[#B8001F]/10 hover:bg-[#B8001F]/20 text-[#B8001F] transition-colors mr-3 font-semibold"
-          >
-            Try Again
-          </button>
-          <button
-            onClick={onBack}
-            className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors font-semibold"
-          >
-            Go Back
-          </button>
+        <div className="glass rounded-3xl max-w-md w-full text-center px-8 py-12 md:px-10 md:py-14 space-y-5">
+          <div className="text-6xl">😢</div>
+          <h2 className="text-2xl font-bold">Camera Access Denied</h2>
+          <p className="text-[var(--color-text-secondary)] font-medium leading-relaxed">
+            {error}
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
+            <button
+              onClick={() => startCamera()}
+              className="px-6 py-3 rounded-xl bg-[#B8001F]/15 hover:bg-[#B8001F]/25 text-[#B8001F] transition-colors font-semibold"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onBack}
+              className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors font-semibold"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -257,19 +264,21 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
 
   // LARGER preview container styles with slight scale-down for breathing room
   const getPreviewContainerStyle = () => {
+    const aspect = targetAspectRatio
+    const aspectRatioString = `${orientation?.width || 9}/${orientation?.height || 16}`
     if (isCameraHorizontal) {
       return {
-        aspectRatio: '16/9',
+        aspectRatio: aspectRatioString,
         width: '85vw',
         maxWidth: '780px', // ~5% smaller for extra breathing room
         maxHeight: '60vh',
       }
     } else {
       return {
-        aspectRatio: '9/16',
-        width: '66vw',
-        maxWidth: '385px',
-        maxHeight: '70vh',
+        aspectRatio: aspectRatioString,
+        width: '56vw',
+        maxWidth: '340px',
+        maxHeight: '64vh',
       }
     }
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getGridConfig } from '../lib/layouts'
+import { getSpacingRatios } from '../lib/spacing'
 
 function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -49,6 +50,8 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
     const composeImage = async () => {
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
 
       const gridConfig = getGridConfig(layout, orientation)
       const { rows, cols, captionSpace } = gridConfig
@@ -59,13 +62,16 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
-      const padding = Math.min(canvasWidth, canvasHeight) * 0.03
-      const gap = Math.min(canvasWidth, canvasHeight) * 0.015
+      const { paddingRatio, gapRatio } = getSpacingRatios(orientation)
+      const paddingX = canvasWidth * paddingRatio
+      const paddingY = canvasHeight * paddingRatio
+      const gapX = canvasWidth * gapRatio
+      const gapY = canvasHeight * gapRatio
       const brandingHeight = 0
       const captionHeight = captionSpace ? canvasHeight * 0.08 : 0
 
-      const availableWidth = canvasWidth - (padding * 2) - (gap * (cols - 1))
-      const availableHeight = canvasHeight - (padding * 2) - (gap * (rows - 1)) - brandingHeight - captionHeight
+      const availableWidth = canvasWidth - (paddingX * 2) - (gapX * (cols - 1))
+      const availableHeight = canvasHeight - (paddingY * 2) - (gapY * (rows - 1)) - brandingHeight - captionHeight
 
       const photoWidth = availableWidth / cols
       const photoHeight = availableHeight / rows
@@ -93,8 +99,8 @@ function Preview({ photos, layout, orientation, onConfirm, onRetake }) {
         const col = index % cols
         const row = Math.floor(index / cols)
 
-        const x = padding + (col * (photoWidth + gap))
-        const y = padding + (row * (photoHeight + gap))
+        const x = paddingX + (col * (photoWidth + gapX))
+        const y = paddingY + (row * (photoHeight + gapY))
 
         const cornerRadius = Math.min(photoWidth, photoHeight) * 0.02
         
