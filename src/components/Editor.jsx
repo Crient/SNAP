@@ -625,23 +625,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const handleExport = async () => {
     if (!exportCanvasRef.current || !loadedPhotos.length) return
 
-    const isIOSDevice = () => {
-      if (typeof navigator === 'undefined') return false
-      const ua = navigator.userAgent || ''
-      // iPad on iOS 13+ reports as MacIntel, so also check touch points
-      const isIOS = /iP(hone|od|ad)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-      return isIOS
-    }
-
     const supportsDownloadAttr = () => {
       const link = document.createElement('a')
       return typeof link.download !== 'undefined'
     }
-
-    const isIOS = isIOSDevice()
-    // For iOS browsers, open a blank tab immediately so the later navigation
-    // isn't blocked as a popup once async rendering finishes.
-    const iosDownloadTab = isIOS ? window.open('', '_blank') : null
 
     // Hide selection UI during export
     setIsExporting(true)
@@ -778,17 +765,17 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       })
 
       const blobUrl = URL.createObjectURL(blob)
-      const canDownload = supportsDownloadAttr() && !isIOS
+      const canDownload = supportsDownloadAttr()
 
       if (canDownload) {
         const link = document.createElement('a')
         link.download = `snap-photo-${Date.now()}.png`
         link.href = blobUrl
+        link.target = '_self'
+        link.rel = 'noopener'
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
-      } else if (iosDownloadTab) {
-        iosDownloadTab.location.href = blobUrl
       } else {
         window.location.href = blobUrl
       }
@@ -803,9 +790,6 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       // Give the browser time to start navigation before revoking
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
     } catch (err) {
-      if (iosDownloadTab && !iosDownloadTab.closed) {
-        iosDownloadTab.close()
-      }
       console.error('Failed to export image:', err)
     } finally {
       setIsExporting(false)
