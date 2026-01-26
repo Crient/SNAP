@@ -265,6 +265,9 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
 const ELEMENT_BASE_SIZE_PX = 80
 const ELEMENT_DUPLICATE_OFFSET = 2.5
 const ROTATE_HANDLE_OFFSET_PX = 36
+const MIN_ELEMENT_SCALE = 0.3
+const MAX_ELEMENT_SCALE = 8
+const ELEMENT_VISIBLE_MARGIN_PX = 12
 
 const PlacedElement = memo(function PlacedElement({ element, containerRect, isSelected, onSelect, isExporting }) {
   const size = element.scale * ELEMENT_BASE_SIZE_PX
@@ -375,7 +378,7 @@ const ElementRotateLabel = memo(function ElementRotateLabel({ position, label })
   if (!position || !label) return null
 
   return (
-    <div className="absolute inset-0 z-40 pointer-events-none">
+    <div className="absolute inset-0 pointer-events-none element-rotate-label-layer">
       <div
         className="element-rotate-label-anchor"
         style={{ left: `${position.x}px`, top: `${position.y}px` }}
@@ -739,6 +742,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     )
     setRotationHandlePosition({ x: handleX, y: handleY })
   }, [selectedElementId])
+
+  const getClampedPercent = useCallback((centerPx, sizePx, containerSize) => {
+    const min = -sizePx / 2 + ELEMENT_VISIBLE_MARGIN_PX
+    const max = containerSize + sizePx / 2 - ELEMENT_VISIBLE_MARGIN_PX
+    return (clamp(centerPx, min, max) / containerSize) * 100
+  }, [])
 
   const handleRotateStart = useCallback(() => {
     setIsRotating(true)
@@ -1509,8 +1518,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     const centerX = elRect.left - containerRect.left + elRect.width / 2
                     const centerY = elRect.top - containerRect.top + elRect.height / 2
                     updateElement(selectedElementId, {
-                      x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
-                      y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                      x: getClampedPercent(centerX, elRect.width, containerRect.width),
+                      y: getClampedPercent(centerY, elRect.height, containerRect.height),
                     })
                     updateToolbarPosition(target)
                   }}
@@ -1534,9 +1543,9 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     const newWidth = parseFloat(target.style.width)
                     const newScale = newWidth / ELEMENT_BASE_SIZE_PX
                     updateElement(selectedElementId, { 
-                      scale: Math.max(0.3, Math.min(3, newScale)),
-                      x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
-                      y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                      scale: clamp(newScale, MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE),
+                      x: getClampedPercent(centerX, elRect.width, containerRect.width),
+                      y: getClampedPercent(centerY, elRect.height, containerRect.height),
                     })
                     updateToolbarPosition(target)
                   }}
@@ -1710,8 +1719,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   const centerX = elRect.left - containerRect.left + elRect.width / 2
                   const centerY = elRect.top - containerRect.top + elRect.height / 2
                   updateElement(selectedElementId, {
-                    x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
-                    y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                    x: getClampedPercent(centerX, elRect.width, containerRect.width),
+                    y: getClampedPercent(centerY, elRect.height, containerRect.height),
                   })
                   updateToolbarPosition(target)
                 }}
@@ -1735,11 +1744,11 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   const centerX = elRect.left - containerRect.left + elRect.width / 2
                   const centerY = elRect.top - containerRect.top + elRect.height / 2
                   const newWidth = parseFloat(target.style.width)
-                  const newScale = newWidth / 80
+                  const newScale = newWidth / ELEMENT_BASE_SIZE_PX
                   updateElement(selectedElementId, { 
-                    scale: Math.max(0.3, Math.min(3, newScale)),
-                    x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
-                    y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
+                    scale: clamp(newScale, MIN_ELEMENT_SCALE, MAX_ELEMENT_SCALE),
+                    x: getClampedPercent(centerX, elRect.width, containerRect.width),
+                    y: getClampedPercent(centerY, elRect.height, containerRect.height),
                   })
                   updateToolbarPosition(target)
                 }}

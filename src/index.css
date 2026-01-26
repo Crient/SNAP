@@ -596,6 +596,10 @@ body {
   pointer-events: none;
 }
 
+.element-rotate-label-layer {
+  z-index: 4001;
+}
+
 .element-rotate-label {
   background: rgba(17, 17, 17, 0.88);
   color: #ffffff;
