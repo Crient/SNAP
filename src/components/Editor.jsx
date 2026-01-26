@@ -111,6 +111,19 @@ function loadImage(src) {
   })
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function normalizeRotation(deg) {
+  const normalized = ((deg % 360) + 360) % 360
+  return normalized >= 180 ? normalized - 360 : normalized
+}
+
+function formatRotationLabel(deg) {
+  return `${Math.round(normalizeRotation(deg))}°`
+}
+
 // ============================================
 // BACKGROUND THUMBNAIL COMPONENT (Memoized)
 // - Receives num + onSelect to avoid inline callback props
@@ -248,11 +261,12 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
 // PLACED ELEMENT COMPONENT (transform-only positioning for Moveable)
 // - Uses transform for ALL positioning (no left/top mixing)
 // - will-change + touch-action for smooth dragging
-// - Includes delete X button when selected (hidden during export)
 // ============================================
 const ELEMENT_BASE_SIZE_PX = 80
+const ELEMENT_DUPLICATE_OFFSET = 2.5
+const ROTATE_HANDLE_OFFSET_PX = 36
 
-const PlacedElement = memo(function PlacedElement({ element, containerRect, isSelected, onSelect, onDelete, isExporting }) {
+const PlacedElement = memo(function PlacedElement({ element, containerRect, isSelected, onSelect, isExporting }) {
   const size = element.scale * ELEMENT_BASE_SIZE_PX
   
   // Calculate pixel position from percentage (transform-only approach)
@@ -265,11 +279,6 @@ const PlacedElement = memo(function PlacedElement({ element, containerRect, isSe
     const px = (element.x / 100) * width
     const py = (element.y / 100) * height
     return `translate(${px - size/2}px, ${py - size/2}px) rotate(${element.rotation}deg)`
-  }
-
-  const handleDelete = (e) => {
-    e.stopPropagation()
-    onDelete(element.id)
   }
 
   return (
@@ -294,16 +303,87 @@ const PlacedElement = memo(function PlacedElement({ element, containerRect, isSe
         className="w-full h-full object-contain pointer-events-none"
         draggable={false}
       />
-      {/* Delete X button - only when selected and not exporting */}
-      {isSelected && !isExporting && (
+    </div>
+  )
+})
+
+const ElementToolbar = memo(function ElementToolbar({ position, locked, onToggleLock, onDuplicate, onDelete }) {
+  if (!position) return null
+
+  return (
+    <div className="absolute inset-0 z-40 pointer-events-none">
+      <div
+        className="element-toolbar"
+        style={{ left: `${position.x}px`, top: `${position.y}px` }}
+      >
         <button
-          onClick={handleDelete}
-          className="element-delete-btn"
-          title="Delete element"
+          type="button"
+          className="element-toolbar-btn"
+          aria-label={locked ? 'Unlock element' : 'Lock element'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleLock()
+          }}
         >
-          ×
+          {locked ? (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M7 10V7a5 5 0 0 1 10 0v3" />
+              <rect x="5" y="10" width="14" height="10" rx="2" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 10V7a5 5 0 0 0-10 0" />
+              <rect x="5" y="10" width="14" height="10" rx="2" />
+            </svg>
+          )}
         </button>
-      )}
+        <button
+          type="button"
+          className="element-toolbar-btn"
+          aria-label="Duplicate element"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDuplicate()
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <rect x="4" y="4" width="11" height="11" rx="2" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="element-toolbar-btn element-toolbar-danger"
+          aria-label="Delete element"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M6 6l1 14h10l1-14" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+})
+
+const ElementRotateLabel = memo(function ElementRotateLabel({ position, label }) {
+  if (!position || !label) return null
+
+  return (
+    <div className="absolute inset-0 z-40 pointer-events-none">
+      <div
+        className="element-rotate-label-anchor"
+        style={{ left: `${position.x}px`, top: `${position.y}px` }}
+      >
+        <div className="element-rotate-label" aria-live="polite">
+          {label}
+        </div>
+      </div>
     </div>
   )
 })
@@ -332,6 +412,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [selectedElementId, setSelectedElementId] = useState(null)
   const [containerRect, setContainerRect] = useState({ width: 0, height: 0 })
   const [canvasEl, setCanvasEl] = useState(null)
+  const [toolbarPosition, setToolbarPosition] = useState(null)
+  const [rotationHandlePosition, setRotationHandlePosition] = useState(null)
+  const [isRotating, setIsRotating] = useState(false)
+  const [rotationLabel, setRotationLabel] = useState(null)
   
   // Bottom sheet state for mobile
   const [sheetSnapIndex, setSheetSnapIndex] = useState(1) // 0=collapsed, 1=half, 2=expanded
@@ -582,6 +666,32 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     )
   }, [])
 
+  const toggleElementLock = useCallback((id) => {
+    setPlacedElements(prev =>
+      prev.map(el => (el.id === id ? { ...el, locked: !el.locked } : el))
+    )
+  }, [])
+
+  const duplicateElement = useCallback((id) => {
+    let newId = null
+    setPlacedElements(prev => {
+      const original = prev.find(el => el.id === id)
+      if (!original) return prev
+      newId = Date.now() + Math.random()
+      const duplicate = {
+        ...original,
+        id: newId,
+        locked: false,
+        x: Math.max(0, Math.min(100, original.x + ELEMENT_DUPLICATE_OFFSET)),
+        y: Math.max(0, Math.min(100, original.y + ELEMENT_DUPLICATE_OFFSET)),
+      }
+      return [...prev, duplicate]
+    })
+    if (newId) {
+      setSelectedElementId(newId)
+    }
+  }, [])
+
   const deleteElement = useCallback((id) => {
     setPlacedElements(prev => prev.filter(el => el.id !== id))
     setSelectedElementId(null)
@@ -589,7 +699,82 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
 
   const deselectAll = useCallback(() => {
     setSelectedElementId(null)
+    setIsRotating(false)
+    setRotationLabel(null)
   }, [])
+
+  const selectedElement = placedElements.find(el => el.id === selectedElementId)
+  const selectedLocked = selectedElement?.locked
+  const showToolbar = selectedElementId && toolbarPosition && !isExporting && !isRotating
+  const showRotationLabel = isRotating && rotationLabel && rotationHandlePosition && !isExporting
+
+  const updateToolbarPosition = useCallback((targetEl) => {
+    const container = canvasContainerRef.current
+    if (!container || !selectedElementId) {
+      setToolbarPosition(null)
+      setRotationHandlePosition(null)
+      return
+    }
+    const elementEl = targetEl || container.querySelector(`.placed-element[data-element-id="${selectedElementId}"]`)
+    if (!elementEl) {
+      setToolbarPosition(null)
+      setRotationHandlePosition(null)
+      return
+    }
+    const containerBox = container.getBoundingClientRect()
+    const elBox = elementEl.getBoundingClientRect()
+    const x = elBox.left - containerBox.left + elBox.width / 2
+    const y = Math.max(12, elBox.top - containerBox.top - 8)
+    setToolbarPosition({ x, y })
+
+    const handleX = clamp(
+      elBox.right - containerBox.left + ROTATE_HANDLE_OFFSET_PX,
+      12,
+      containerBox.width - 12
+    )
+    const handleY = clamp(
+      elBox.top - containerBox.top + elBox.height / 2,
+      12,
+      containerBox.height - 12
+    )
+    setRotationHandlePosition({ x: handleX, y: handleY })
+  }, [selectedElementId])
+
+  const handleRotateStart = useCallback(() => {
+    setIsRotating(true)
+    setRotationLabel(formatRotationLabel(selectedElement?.rotation ?? 0))
+  }, [selectedElement])
+
+  const handleRotate = useCallback(({ target, transform, rotation }) => {
+    target.style.transform = transform
+    updateToolbarPosition(target)
+    if (typeof rotation === 'number') {
+      setRotationLabel(formatRotationLabel(rotation))
+    }
+  }, [updateToolbarPosition])
+
+  const handleRotateEnd = useCallback(({ lastEvent }) => {
+    if (lastEvent && selectedElementId) {
+      const nextRotation = typeof lastEvent.rotation === 'number' ? lastEvent.rotation : lastEvent.rotate
+      if (typeof nextRotation === 'number') {
+        updateElement(selectedElementId, { rotation: nextRotation })
+      }
+    }
+    updateToolbarPosition()
+    setIsRotating(false)
+    setRotationLabel(null)
+  }, [selectedElementId, updateElement, updateToolbarPosition])
+
+  useEffect(() => {
+    if (!selectedElementId || isExporting) {
+      setToolbarPosition(null)
+      setRotationHandlePosition(null)
+      setIsRotating(false)
+      setRotationLabel(null)
+      return
+    }
+    updateToolbarPosition()
+  }, [selectedElementId, placedElements, containerRect.width, containerRect.height, isExporting, updateToolbarPosition])
 
   // Keyboard delete for selected element
   useEffect(() => {
@@ -935,13 +1120,14 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
 
         {/* Level 2: Elements helper text */}
         {activeTab === TABS.ELEMENTS && (
-          <p className="text-[9px] text-[var(--color-text-muted)]">
+          <p className="text-[10px] font-bold text-center text-[var(--color-text-muted)]"
+          style={{ paddingTop: '3px', paddingBottom: '3px' }}>
             Click to add elements to your photo
           </p>
         )}
 
         {/* Divider after Level 2 */}
-        <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '2px' }} />
+        <div className="border-t border-[var(--card-border)]" style={{ marginTop: '2px', marginBottom: '5px' }} />
 
         {/* Level 3: Category chips */}
         <div 
@@ -952,7 +1138,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             <button
               key={key}
               onClick={() => setBgCategory(key)}
-              className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+              className={`rounded-full text-[10px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 bgCategory === key
                   ? 'bg-[#B8001F]/10 text-[#B8001F]'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -969,7 +1155,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             <button
               key={key}
               onClick={() => setElementCategory(key)}
-              className={`rounded-full text-[8px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+              className={`rounded-full text-[10px] font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 elementCategory === key
                   ? 'bg-[#B8001F]/10 text-[#B8001F]'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -1270,15 +1456,33 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                       containerRect={containerRect}
                       isSelected={element.id === selectedElementId}
                       onSelect={setSelectedElementId}
-                      onDelete={deleteElement}
                       isExporting={isExporting}
                     />
                   ))}
                 </div>
               </div>
 
+              {/* Rotation label */}
+              {showRotationLabel && (
+                <ElementRotateLabel
+                  position={rotationHandlePosition}
+                  label={rotationLabel}
+                />
+              )}
+
+              {/* Element toolbar */}
+              {showToolbar && (
+                <ElementToolbar
+                  position={toolbarPosition}
+                  locked={selectedLocked}
+                  onToggleLock={() => toggleElementLock(selectedElementId)}
+                  onDuplicate={() => duplicateElement(selectedElementId)}
+                  onDelete={() => deleteElement(selectedElementId)}
+                />
+              )}
+
               {/* Moveable */}
-              {selectedElementId && !isExporting && (
+              {selectedElementId && !isExporting && !selectedLocked && (
                 <Moveable
                   target={`.placed-element[data-element-id="${selectedElementId}"]`}
                   container={canvasEl}
@@ -1290,11 +1494,12 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                   throttleRotate={0}
                   throttleResize={0}
                   renderDirections={["nw", "ne", "sw", "se"]}
-                  rotationPosition="top"
+                  rotationPosition="right"
                   origin={false}
                   padding={{ left: 0, top: 0, right: 0, bottom: 0 }}
                   onDrag={({ target, transform }) => {
                     target.style.transform = transform
+                    updateToolbarPosition(target)
                   }}
                   onDragEnd={({ target }) => {
                     const container = canvasContainerRef.current
@@ -1307,18 +1512,16 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                       x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
                       y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
                     })
+                    updateToolbarPosition(target)
                   }}
-                  onRotate={({ target, transform }) => {
-                    target.style.transform = transform
-                  }}
-                  onRotateEnd={({ lastEvent }) => {
-                    if (!lastEvent) return
-                    updateElement(selectedElementId, { rotation: lastEvent.rotate })
-                  }}
+                  onRotateStart={handleRotateStart}
+                  onRotate={handleRotate}
+                  onRotateEnd={handleRotateEnd}
                   onResize={({ target, width, height, drag }) => {
                     target.style.width = `${width}px`
                     target.style.height = `${height}px`
                     target.style.transform = drag.transform
+                    updateToolbarPosition(target)
                   }}
                   onResizeEnd={({ target, lastEvent }) => {
                     if (!lastEvent) return
@@ -1335,6 +1538,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                       x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
                       y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
                     })
+                    updateToolbarPosition(target)
                   }}
                 />
               )}
@@ -1458,24 +1662,44 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               </div>
             </div>
 
+            {/* Rotation label */}
+            {showRotationLabel && (
+              <ElementRotateLabel
+                position={rotationHandlePosition}
+                label={rotationLabel}
+              />
+            )}
+
+            {/* Element toolbar */}
+            {showToolbar && (
+              <ElementToolbar
+                position={toolbarPosition}
+                locked={selectedLocked}
+                onToggleLock={() => toggleElementLock(selectedElementId)}
+                onDuplicate={() => duplicateElement(selectedElementId)}
+                onDelete={() => deleteElement(selectedElementId)}
+              />
+            )}
+
             {/* Moveable for selected element - transform-only, single source of truth */}
-              {selectedElementId && !isExporting && (
-                <Moveable
-                  target={`.placed-element[data-element-id="${selectedElementId}"]`}
-                  container={canvasEl}
-                  draggable={true}
-                  rotatable={true}
-                  resizable={true}
-                  keepRatio={true}
+            {selectedElementId && !isExporting && !selectedLocked && (
+              <Moveable
+                target={`.placed-element[data-element-id="${selectedElementId}"]`}
+                container={canvasEl}
+                draggable={true}
+                rotatable={true}
+                resizable={true}
+                keepRatio={true}
                 throttleDrag={0}
                 throttleRotate={0}
                 throttleResize={0}
                 renderDirections={['nw', 'ne', 'sw', 'se']}
-                rotationPosition="top"
+                rotationPosition="right"
                 origin={false}
                 // DRAG: Direct DOM transform update only
                 onDrag={({ target, transform }) => {
                   target.style.transform = transform
+                  updateToolbarPosition(target)
                 }}
                 onDragEnd={({ target, lastEvent }) => {
                   if (!lastEvent) return
@@ -1489,20 +1713,18 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
                     y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
                   })
+                  updateToolbarPosition(target)
                 }}
                 // ROTATE: Direct DOM transform update only
-                onRotate={({ target, transform }) => {
-                  target.style.transform = transform
-                }}
-                onRotateEnd={({ lastEvent }) => {
-                  if (!lastEvent) return
-                  updateElement(selectedElementId, { rotation: lastEvent.rotate })
-                }}
+                onRotateStart={handleRotateStart}
+                onRotate={handleRotate}
+                onRotateEnd={handleRotateEnd}
                 // RESIZE: Direct DOM update during resize
                 onResize={({ target, width, height, drag }) => {
                   target.style.width = `${width}px`
                   target.style.height = `${height}px`
                   target.style.transform = drag.transform
+                  updateToolbarPosition(target)
                 }}
                 onResizeEnd={({ target, lastEvent }) => {
                   if (!lastEvent) return
@@ -1519,6 +1741,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                     x: Math.max(0, Math.min(100, (centerX / containerRect.width) * 100)),
                     y: Math.max(0, Math.min(100, (centerY / containerRect.height) * 100)),
                   })
+                  updateToolbarPosition(target)
                 }}
               />
             )}

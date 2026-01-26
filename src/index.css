@@ -574,6 +574,118 @@ body {
   background: #C62828;
 }
 
+/* Element toolbar (lock/duplicate/delete) */
+.element-toolbar {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  pointer-events: auto;
+}
+
+.element-rotate-label-anchor {
+  position: absolute;
+  transform: translate(-100%, -50%) translateX(-10px);
+  pointer-events: none;
+}
+
+.element-rotate-label {
+  background: rgba(17, 17, 17, 0.88);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.moveable-control-box .moveable-rotation-line {
+  display: none;
+}
+
+.moveable-control-box .moveable-rotation-control {
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  margin-top: -16px;
+  background-color: #ffffff;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  cursor: grab;
+  touch-action: none;
+  background-image: url("/assets/rotate-icon.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.moveable-control-box .moveable-control {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.18), 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.moveable-control-box .moveable-rotation-control:active {
+  cursor: grabbing;
+}
+
+.element-toolbar-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.element-toolbar-btn:hover {
+  background: rgba(17, 17, 17, 0.08);
+  transform: translateY(-1px);
+}
+
+.element-toolbar-danger {
+  color: #E53935;
+}
+
+.element-toolbar-danger:hover {
+  background: rgba(229, 57, 53, 0.12);
+}
+
+.dark .element-toolbar {
+  background: rgba(18, 18, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.dark .moveable-control-box .moveable-rotation-control {
+  background-color: rgba(18, 18, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  background-image: url("/assets/rotate-icon-dark.svg");
+}
+.dark .element-rotate-label {
+  background: rgba(245, 245, 245, 0.92);
+  color: #111111;
+}
+
+.dark .element-toolbar-btn {
+  color: #F3F3F3;
+}
+
 /* ============================================
    RESPONSIVE STYLES
    ============================================ */
@@ -610,6 +722,19 @@ body {
     width: 20px;
     height: 20px;
     font-size: 12px;
+  }
+
+  .moveable-control-box .moveable-rotation-control {
+    width: 34px;
+    height: 34px;
+    margin-left: -17px;
+    margin-top: -17px;
+    background-size: 18px 18px;
+  }
+
+  .element-rotate-label {
+    font-size: 11px;
+    padding: 5px 7px;
   }
   
   /* Hide scrollbar on mobile but keep scrolling */
@@ -652,6 +777,14 @@ body {
     width: 24px;
     height: 24px;
     font-size: 14px;
+  }
+
+  .moveable-control-box .moveable-rotation-control {
+    width: 36px;
+    height: 36px;
+    margin-left: -18px;
+    margin-top: -18px;
+    background-size: 18px 18px;
   }
 }
 
