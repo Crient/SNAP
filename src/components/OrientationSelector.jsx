@@ -15,13 +15,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
     return selectedLayout.grid
   }
 
-  // For 3x1 layout, icons are swapped (vertical = computer, horizontal = phone)
-  const getOrientationIcon = (orientation) => {
-    if (selectedLayout.id === 'grid-3x1') {
-      return orientation.id === 'vertical' ? '🖥️' : '📱'
-    }
-    return orientation.icon
-  }
+  const getOrientationIcon = (orientation) => orientation.icon
 
   const renderOrientationPreview = (orientation) => {
     const isVertical = orientation.id === 'vertical'

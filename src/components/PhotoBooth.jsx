@@ -41,7 +41,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     : (orientation?.aspectRatio || (9 / 16))
   const isCameraHorizontal = targetAspectRatio > 1
   
-  const { stream, error, isLoading, startCamera, stopCamera, isMobile } = useCamera({ aspectRatio: targetAspectRatio })
+  const { stream, error, isLoading, startCamera, stopCamera } = useCamera({ aspectRatio: targetAspectRatio })
   
   const [captureState, setCaptureState] = useState(CAPTURE_STATES.READY)
   const [countdown, setCountdown] = useState(3)
@@ -49,13 +49,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   const [capturedPhotos, setCapturedPhotos] = useState([])
   const [showFlash, setShowFlash] = useState(false)
   const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 })
-  const videoAspectRatio = videoDimensions.width && videoDimensions.height
-    ? videoDimensions.width / videoDimensions.height
-    : null
-  const aspectMismatch = videoAspectRatio
-    ? Math.abs(videoAspectRatio - targetAspectRatio) / targetAspectRatio
-    : 0
-  const useContainFit = !isCameraHorizontal && isMobile && aspectMismatch > 0.12
   const [showCameraReminder, setShowCameraReminder] = useState(() => {
     try {
       const hasSeenReminder = sessionStorage.getItem('snap-camera-reminder-seen')
@@ -141,7 +134,11 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    const fitMode = useContainFit ? 'contain' : 'cover'
+
+    const cropRegion = calculateCropRegion()
+    if (!cropRegion) return null
+
+    const { srcX, srcY, srcWidth, srcHeight } = cropRegion
 
     const captureScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.3), 2)
     const targetWidth = (orientation?.width || video.videoWidth || 1080) * captureScale
@@ -157,49 +154,20 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     canvas.width = photoExportWidth
     canvas.height = photoExportHeight
 
-    if (fitMode === 'contain') {
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-    }
-
     ctx.save()
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
-
-    if (fitMode === 'cover') {
-      const cropRegion = calculateCropRegion()
-      if (!cropRegion) {
-        ctx.restore()
-        return null
-      }
-
-      const { srcX, srcY, srcWidth, srcHeight } = cropRegion
-
-      ctx.drawImage(
-        video,
-        srcX, srcY, srcWidth, srcHeight,
-        0, 0, canvas.width, canvas.height
-      )
-    } else {
-      const drawScale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight)
-      const drawWidth = sourceWidth * drawScale
-      const drawHeight = sourceHeight * drawScale
-      const dx = (canvas.width - drawWidth) / 2
-      const dy = (canvas.height - drawHeight) / 2
-      const mirroredX = canvas.width - dx - drawWidth
-
-      ctx.drawImage(
-        video,
-        0, 0, sourceWidth, sourceHeight,
-        mirroredX, dy, drawWidth, drawHeight
-      )
-    }
+    ctx.drawImage(
+      video,
+      srcX, srcY, srcWidth, srcHeight,
+      0, 0, canvas.width, canvas.height
+    )
     ctx.restore()
 
     // High-quality capture to preserve detail before compositing
-    // PNG avoids JPEG softness; contain mode preserves full FOV with padding
+    // PNG avoids JPEG softness; source is already cropped to target AR
     return canvas.toDataURL('image/png')
-  }, [calculateCropRegion, orientation, targetAspectRatio, useContainFit])
+  }, [calculateCropRegion, orientation, targetAspectRatio])
 
   // Start capture sequence
   const startCapture = useCallback(() => {
@@ -296,18 +264,17 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
 
   // LARGER preview container styles with slight scale-down for breathing room
   const getPreviewContainerStyle = () => {
-    const aspect = targetAspectRatio
-    const aspectRatioString = `${orientation?.width || 9}/${orientation?.height || 16}`
+    const previewAspectRatio = targetAspectRatio || (orientation?.aspectRatio || (9 / 16))
     if (isCameraHorizontal) {
       return {
-        aspectRatio: aspectRatioString,
+        aspectRatio: previewAspectRatio,
         width: '85vw',
         maxWidth: '780px', // ~5% smaller for extra breathing room
         maxHeight: '60vh',
       }
     } else {
       return {
-        aspectRatio: aspectRatioString,
+        aspectRatio: previewAspectRatio,
         width: '56vw',
         maxWidth: '340px',
         maxHeight: '64vh',
@@ -331,7 +298,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
         {/* Camera Preview - LARGER */}
         <div className="capture-frame-wrapper relative w-full flex justify-center" style={{ marginBottom: '10px' }}>
           <div 
-            className={`relative rounded-2xl overflow-hidden shadow-lg ${useContainFit ? 'bg-black/10' : ''}`}
+            className="relative rounded-2xl overflow-hidden shadow-lg"
             style={getPreviewContainerStyle()}
           >
             <video
@@ -339,7 +306,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
               autoPlay
               playsInline
               muted
-              className={`w-full h-full ${useContainFit ? 'object-contain' : 'object-cover'} camera-mirror`}
+              className="w-full h-full object-cover camera-mirror"
             />
 
             {/* Ring Light - Exposure Boost Layer */}

@@ -51,7 +51,7 @@ function useCamera({ aspectRatio } = {}) {
         audio: false,
       })
 
-      const useExactAspect = typeof aspectRatio === 'number' && aspectRatio < 1
+      const useExactAspect = typeof aspectRatio === 'number' && isMobile
       const exactAspect = useExactAspect ? { exact: aspectRatio } : null
       const idealAspect = aspectRatio ? { ideal: aspectRatio } : null
 

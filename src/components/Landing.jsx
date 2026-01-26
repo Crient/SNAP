@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 
 function Landing({ onStart }) {
-  const [isLoaded, setIsLoaded] = useState(false)
-
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100)
-    return () => clearTimeout(timer)
+    const frame = requestAnimationFrame(() => {
+      if (typeof window !== 'undefined' && window.__snapHideBoot) {
+        window.__snapHideBoot()
+      }
+    })
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 md:py-12">
       {/* Logo and Title - 30% bigger on mobile */}
-      <div className={`text-center mb-6 md:mb-8 ${isLoaded ? 'fade-up' : 'opacity-0'}`}>
+      <div className="text-center mb-6 md:mb-8 fade-up">
         {/* Animated Camera Icon - bigger on mobile */}
         <div className="relative inline-block mb-4 md:mb-6">
           <div className="text-[5rem] md:text-8xl lg:text-9xl float">📸</div>
@@ -38,7 +40,7 @@ function Landing({ onStart }) {
         <div className="flex flex-col items-center gap-5 md:gap-6">
           {/* Tagline - 2px smaller on mobile */}
           <p 
-            className={`text-[14px] md:text-lg lg:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] leading-relaxed text-center ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
+            className="text-[14px] md:text-lg lg:text-xl max-w-md mx-auto font-semibold text-[var(--color-text-secondary)] leading-relaxed text-center fade-up delay-200"
           >
             Your digital photobooth.
             <br />
@@ -46,7 +48,7 @@ function Landing({ onStart }) {
           </p>
 
           {/* Start Button */}
-          <div className={`${isLoaded ? 'fade-up delay-300' : 'opacity-0'}`}>
+          <div className="fade-up delay-300">
             <button
               onClick={onStart}
               className="group relative rounded-2xl btn-primary text-white font-bold text-lg md:text-xl shadow-lg overflow-hidden"
@@ -72,7 +74,7 @@ function Landing({ onStart }) {
         </div>
 
         {/* Features Preview - Always 4 columns in a single row */}
-        <div className={`grid grid-cols-4 gap-2 md:gap-3 w-full max-w-md md:max-w-xl ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}>
+        <div className="grid grid-cols-4 gap-2 md:gap-3 w-full max-w-md md:max-w-xl fade-up delay-400">
           {[
             { icon: '🎨', label: 'Pick Layout' },
             { icon: '✨', label: 'Add Stickers' },

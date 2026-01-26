@@ -16,7 +16,11 @@ root.render(
 
 const bootLoader = document.getElementById('boot-loader')
 if (bootLoader) {
-  requestAnimationFrame(() => {
-    bootLoader.remove()
-  })
+  window.__snapHideBoot = () => {
+    if (bootLoader.classList.contains('boot-hide')) return
+    bootLoader.classList.add('boot-hide')
+    window.setTimeout(() => {
+      bootLoader.remove()
+    }, 350)
+  }
 }
