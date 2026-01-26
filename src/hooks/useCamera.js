@@ -40,22 +40,26 @@ function useCamera({ aspectRatio } = {}) {
             [960, 540],
           ]
 
-      const makePreset = (width, height, withAspect) => ({
+      const makePreset = (width, height, aspectSetting) => ({
         video: {
           facingMode: 'user',
           width: { ideal: width },
           height: { ideal: height },
-          ...(withAspect && aspectRatio ? { aspectRatio } : {}),
+          ...(aspectSetting ? { aspectRatio: aspectSetting } : {}),
           frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
       })
 
+      const useExactAspect = typeof aspectRatio === 'number' && aspectRatio < 1
+      const exactAspect = useExactAspect ? { exact: aspectRatio } : null
+      const idealAspect = aspectRatio ? { ideal: aspectRatio } : null
+
       // Try high → medium (with aspect) → fallback (no aspect)
       const presets = [
-        makePreset(sizePresets[0][0], sizePresets[0][1], true),
-        makePreset(sizePresets[1][0], sizePresets[1][1], true),
-        makePreset(sizePresets[2][0], sizePresets[2][1], false),
+        makePreset(sizePresets[0][0], sizePresets[0][1], exactAspect),
+        makePreset(sizePresets[1][0], sizePresets[1][1], idealAspect),
+        makePreset(sizePresets[2][0], sizePresets[2][1], null),
       ]
 
       let lastError = null

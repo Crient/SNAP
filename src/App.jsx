@@ -1,13 +1,25 @@
-import { useState } from 'react'
+import { useState, Suspense, lazy } from 'react'
 import Landing from './components/Landing'
-import LayoutSelector from './components/LayoutSelector'
-import OrientationSelector from './components/OrientationSelector'
-import PhotoBooth from './components/PhotoBooth'
-import Preview from './components/Preview'
-import Editor from './components/Editor'
 import ThemeToggle from './components/ThemeToggle'
 import AnimatedBackground from './components/AnimatedBackground'
 import { LAYOUTS, ORIENTATIONS } from './lib/layouts'
+
+const LayoutSelector = lazy(() => import('./components/LayoutSelector'))
+const OrientationSelector = lazy(() => import('./components/OrientationSelector'))
+const PhotoBooth = lazy(() => import('./components/PhotoBooth'))
+const Preview = lazy(() => import('./components/Preview'))
+const Editor = lazy(() => import('./components/Editor'))
+
+function StageLoader({ label }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="h-10 w-10 rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-brand-primary)] animate-spin" />
+        <p className="text-[var(--color-text-secondary)] font-semibold">{label}</p>
+      </div>
+    </div>
+  )
+}
 
 // App stages
 const STAGES = {
@@ -104,54 +116,56 @@ function App() {
 
       {/* Main Content */}
       <main className="relative z-10">
-        {stage === STAGES.LANDING && (
-          <Landing onStart={handleStart} />
-        )}
+        <Suspense fallback={<StageLoader label="Loading..." />}>
+          {stage === STAGES.LANDING && (
+            <Landing onStart={handleStart} />
+          )}
 
-        {stage === STAGES.LAYOUT && (
-          <LayoutSelector 
-            layouts={LAYOUTS} 
-            onSelect={handleLayoutSelect}
-            onBack={handleBack}
-          />
-        )}
+          {stage === STAGES.LAYOUT && (
+            <LayoutSelector 
+              layouts={LAYOUTS} 
+              onSelect={handleLayoutSelect}
+              onBack={handleBack}
+            />
+          )}
 
-        {stage === STAGES.ORIENTATION && (
-          <OrientationSelector
-            orientations={getAllowedOrientations()}
-            selectedLayout={selectedLayout}
-            onSelect={handleOrientationSelect}
-            onBack={handleBack}
-          />
-        )}
+          {stage === STAGES.ORIENTATION && (
+            <OrientationSelector
+              orientations={getAllowedOrientations()}
+              selectedLayout={selectedLayout}
+              onSelect={handleOrientationSelect}
+              onBack={handleBack}
+            />
+          )}
 
-        {stage === STAGES.CAPTURE && (
-          <PhotoBooth 
-            layout={selectedLayout}
-            orientation={selectedOrientation}
-            onComplete={handleCaptureComplete}
-            onBack={handleBack}
-          />
-        )}
+          {stage === STAGES.CAPTURE && (
+            <PhotoBooth 
+              layout={selectedLayout}
+              orientation={selectedOrientation}
+              onComplete={handleCaptureComplete}
+              onBack={handleBack}
+            />
+          )}
 
-        {stage === STAGES.PREVIEW && (
-          <Preview 
-            photos={capturedPhotos}
-            layout={selectedLayout}
-            orientation={selectedOrientation}
-            onConfirm={handlePreviewConfirm}
-            onRetake={handleBack}
-          />
-        )}
+          {stage === STAGES.PREVIEW && (
+            <Preview 
+              photos={capturedPhotos}
+              layout={selectedLayout}
+              orientation={selectedOrientation}
+              onConfirm={handlePreviewConfirm}
+              onRetake={handleBack}
+            />
+          )}
 
-        {stage === STAGES.EDITOR && (
-          <Editor 
-            photos={capturedPhotos}
-            layout={selectedLayout}
-            orientation={selectedOrientation}
-            onReset={handleReset}
-          />
-        )}
+          {stage === STAGES.EDITOR && (
+            <Editor 
+              photos={capturedPhotos}
+              layout={selectedLayout}
+              orientation={selectedOrientation}
+              onReset={handleReset}
+            />
+          )}
+        </Suspense>
       </main>
     </div>
   )
