@@ -334,6 +334,21 @@ body {
   color: var(--color-brand-primary);
 }
 
+/* Frame edit action buttons */
+.frame-edit-action {
+  color: var(--color-brand-primary-hover);
+  transition: color 0.2s ease;
+}
+
+.frame-edit-action:hover {
+  color: #E2142F;
+}
+
+.frame-edit-action:focus-visible {
+  outline: 2px solid rgba(184, 0, 31, 0.35);
+  outline-offset: 2px;
+}
+
 /* Background colors */
 .bg-surface {
   background-color: var(--color-surface);

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import FrameEditPanel from './FrameEditPanel'
 import { getGridConfig } from '../lib/layouts'
 import { getSpacingRatios } from '../lib/spacing'
 import Moveable from 'react-moveable'
@@ -122,6 +123,85 @@ function normalizeRotation(deg) {
 
 function formatRotationLabel(deg) {
   return `${Math.round(normalizeRotation(deg))}°`
+}
+
+// ============================================
+// FRAME STATE HELPERS (hide/swap + undo/redo)
+// ============================================
+const MAX_FRAME_HISTORY = 50
+const FRAME_DRAG_THRESHOLD_PX = 6
+
+function createDefaultFrameState(slotCount, photosLength) {
+  const safeSlotCount = Math.max(0, slotCount || 0)
+  const safePhotosLength = Math.max(0, photosLength || 0)
+  const order = Array.from({ length: safeSlotCount }, (_, i) => (
+    i < safePhotosLength ? i : null
+  ))
+  return {
+    visibility: Array(safeSlotCount).fill(true),
+    order,
+  }
+}
+
+function normalizeFrameState(prevState, slotCount, photosLength) {
+  if (!prevState) {
+    return createDefaultFrameState(slotCount, photosLength)
+  }
+
+  const safeSlotCount = Math.max(0, slotCount || 0)
+  const safePhotosLength = Math.max(0, photosLength || 0)
+  const nextVisibility = Array.from({ length: safeSlotCount }, (_, i) => (
+    typeof prevState.visibility?.[i] === 'boolean' ? prevState.visibility[i] : true
+  ))
+
+  const nextOrder = Array(safeSlotCount).fill(null)
+  const usedPhotoIndices = new Set()
+
+  // First, keep any valid, non-duplicate photo assignments.
+  for (let i = 0; i < safeSlotCount; i += 1) {
+    const photoIndex = prevState.order?.[i]
+    const isValidIndex = Number.isInteger(photoIndex) && photoIndex >= 0 && photoIndex < safePhotosLength
+    if (!isValidIndex || usedPhotoIndices.has(photoIndex)) continue
+    nextOrder[i] = photoIndex
+    usedPhotoIndices.add(photoIndex)
+  }
+
+  // Then, fill remaining slots with any unassigned photos in order.
+  let nextPhotoIndex = 0
+  for (let i = 0; i < safeSlotCount; i += 1) {
+    if (nextOrder[i] !== null) continue
+    while (nextPhotoIndex < safePhotosLength && usedPhotoIndices.has(nextPhotoIndex)) {
+      nextPhotoIndex += 1
+    }
+    if (nextPhotoIndex < safePhotosLength) {
+      nextOrder[i] = nextPhotoIndex
+      usedPhotoIndices.add(nextPhotoIndex)
+      nextPhotoIndex += 1
+    }
+  }
+
+  return {
+    visibility: nextVisibility,
+    order: nextOrder,
+  }
+}
+
+function areFrameStatesEqual(a, b) {
+  if (!a || !b) return false
+  if (a.visibility.length !== b.visibility.length) return false
+  if (a.order.length !== b.order.length) return false
+  for (let i = 0; i < a.visibility.length; i += 1) {
+    if (a.visibility[i] !== b.visibility[i]) return false
+    if (a.order[i] !== b.order[i]) return false
+  }
+  return true
+}
+
+function getPhotoLabel(photoIndex, slotIndex) {
+  if (Number.isInteger(photoIndex)) {
+    return `Photo ${photoIndex + 1}`
+  }
+  return `Photo ${slotIndex + 1}`
 }
 
 // ============================================
@@ -395,6 +475,12 @@ const ElementRotateLabel = memo(function ElementRotateLabel({ position, label })
 // MAIN EDITOR COMPONENT
 // ============================================
 function Editor({ photos, layout, orientation, onComplete, onReset }) {
+  // Grid config is needed for both rendering and frame state initialization.
+  const gridConfig = getGridConfig(layout, orientation) || { rows: 1, cols: 1 }
+  const { rows, cols } = gridConfig
+  const slotCount = layout?.shots || (rows * cols)
+  const photosLength = photos?.length || 0
+
   // ----------------------------------------
   // STATE
   // ----------------------------------------
@@ -435,6 +521,21 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // Loaded images cache
   const [loadedPhotos, setLoadedPhotos] = useState([])
 
+  // Frame editing state (hide + drag-to-swap with undo/redo)
+  const [isFrameEditMode, setIsFrameEditMode] = useState(false)
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState(null)
+  const [dragSourceFrameIndex, setDragSourceFrameIndex] = useState(null)
+  const [dragOverFrameIndex, setDragOverFrameIndex] = useState(null)
+  const [frameState, setFrameState] = useState(() => createDefaultFrameState(slotCount, photosLength))
+  const [frameHistory, setFrameHistory] = useState([])
+  const [frameFuture, setFrameFuture] = useState([])
+  const frameStateRef = useRef(frameState)
+  const dragSourceRef = useRef(null)
+  const dragOverRef = useRef(null)
+  const dragPointerIdRef = useRef(null)
+  const pointerStartRef = useRef(null)
+  const prevFrameShapeRef = useRef({ slotCount, photosLength, rows, cols })
+
   // ----------------------------------------
   // RESPONSIVE STATE
   // ----------------------------------------
@@ -453,9 +554,6 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // ----------------------------------------
   // DERIVED VALUES
   // ----------------------------------------
-  const gridConfig = getGridConfig(layout, orientation)
-  const { rows, cols } = gridConfig
-  
   const isVertical = orientation?.id === 'vertical'
   const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
 
@@ -582,6 +680,55 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       .catch(console.error)
   }, [photos])
 
+  // Keep a ref to the latest frame state for undo/redo helpers.
+  useEffect(() => {
+    frameStateRef.current = frameState
+  }, [frameState])
+
+  // If the layout shape or photo count changes, reset frame edits safely.
+  useEffect(() => {
+    const prevShape = prevFrameShapeRef.current
+    if (
+      prevShape.slotCount === slotCount &&
+      prevShape.photosLength === photosLength &&
+      prevShape.rows === rows &&
+      prevShape.cols === cols
+    ) {
+      return
+    }
+    prevFrameShapeRef.current = { slotCount, photosLength, rows, cols }
+
+    const defaultState = createDefaultFrameState(slotCount, photosLength)
+    setFrameState(defaultState)
+    frameStateRef.current = defaultState
+    setFrameHistory([])
+    setFrameFuture([])
+    setSelectedFrameIndex(null)
+    setDragSourceFrameIndex(null)
+    setDragOverFrameIndex(null)
+    dragSourceRef.current = null
+    dragOverRef.current = null
+    dragPointerIdRef.current = null
+    pointerStartRef.current = null
+    setIsFrameEditMode(false)
+  }, [slotCount, photosLength, rows, cols])
+
+  // Entering frame edit mode should disable element interactions.
+  useEffect(() => {
+    if (!isFrameEditMode) {
+      setSelectedFrameIndex(null)
+      setDragSourceFrameIndex(null)
+      setDragOverFrameIndex(null)
+      dragSourceRef.current = null
+      dragOverRef.current = null
+      dragPointerIdRef.current = null
+      pointerStartRef.current = null
+      return
+    }
+    setSelectedElementId(null)
+    setIsRotating(false)
+    setRotationLabel(null)
+  }, [isFrameEditMode])
 
 
   // ----------------------------------------
@@ -618,6 +765,241 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     }
     img.src = bgPath
   }, [])
+
+  // ----------------------------------------
+  // FRAME HANDLERS (hide/drag-swap + undo/redo)
+  // ----------------------------------------
+  const canUndoFrames = frameHistory.length > 0
+  const canRedoFrames = frameFuture.length > 0
+  const isFrameDragActive = dragSourceFrameIndex !== null
+
+  const applyFrameAction = useCallback((updater) => {
+    setFrameState(prev => {
+      const candidate = typeof updater === 'function' ? updater(prev) : prev
+      const normalized = normalizeFrameState(candidate, slotCount, photosLength)
+      if (areFrameStatesEqual(prev, normalized)) {
+        return prev
+      }
+      setFrameHistory(history => [
+        ...history.slice(-(MAX_FRAME_HISTORY - 1)),
+        prev,
+      ])
+      setFrameFuture([])
+      frameStateRef.current = normalized
+      return normalized
+    })
+  }, [slotCount, photosLength])
+
+  const undoFrameAction = useCallback(() => {
+    setFrameHistory(history => {
+      if (!history.length) return history
+      const previousRaw = history[history.length - 1]
+      const previous = normalizeFrameState(previousRaw, slotCount, photosLength)
+      const current = normalizeFrameState(frameStateRef.current, slotCount, photosLength)
+      setFrameFuture(future => [current, ...future].slice(0, MAX_FRAME_HISTORY))
+      setFrameState(previous)
+      frameStateRef.current = previous
+      return history.slice(0, -1)
+    })
+  }, [slotCount, photosLength])
+
+  const redoFrameAction = useCallback(() => {
+    setFrameFuture(future => {
+      if (!future.length) return future
+      const nextRaw = future[0]
+      const next = normalizeFrameState(nextRaw, slotCount, photosLength)
+      const current = normalizeFrameState(frameStateRef.current, slotCount, photosLength)
+      setFrameHistory(history => [
+        ...history.slice(-(MAX_FRAME_HISTORY - 1)),
+        current,
+      ])
+      setFrameState(next)
+      frameStateRef.current = next
+      return future.slice(1)
+    })
+  }, [slotCount, photosLength])
+
+  const toggleFrameEditMode = useCallback(() => {
+    setIsFrameEditMode(prev => {
+      const next = !prev
+      if (!next) {
+        setSelectedFrameIndex(null)
+        setDragSourceFrameIndex(null)
+        setDragOverFrameIndex(null)
+        dragSourceRef.current = null
+        dragOverRef.current = null
+        dragPointerIdRef.current = null
+        pointerStartRef.current = null
+      }
+      return next
+    })
+  }, [])
+
+  const swapFrames = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    applyFrameAction(state => {
+      const nextOrder = state.order.slice()
+      const tmp = nextOrder[fromIndex]
+      nextOrder[fromIndex] = nextOrder[toIndex]
+      nextOrder[toIndex] = tmp
+      return { ...state, order: nextOrder }
+    })
+  }, [applyFrameAction])
+
+  const showAllFrames = useCallback(() => {
+    applyFrameAction(state => ({
+      ...state,
+      visibility: state.visibility.map(() => true),
+    }))
+  }, [applyFrameAction])
+
+  const toggleFrameVisibility = useCallback((slotIndex) => {
+    applyFrameAction(state => {
+      const nextVisibility = state.visibility.slice()
+      const currentlyVisible = state.visibility[slotIndex] !== false
+      nextVisibility[slotIndex] = !currentlyVisible
+      return { ...state, visibility: nextVisibility }
+    })
+  }, [applyFrameAction])
+
+  // Keep refs in sync with state for pointer-based dragging.
+  useEffect(() => {
+    dragSourceRef.current = dragSourceFrameIndex
+  }, [dragSourceFrameIndex])
+
+  useEffect(() => {
+    dragOverRef.current = dragOverFrameIndex
+  }, [dragOverFrameIndex])
+
+  const clearFrameDragState = useCallback(() => {
+    setDragSourceFrameIndex(null)
+    setDragOverFrameIndex(null)
+    dragSourceRef.current = null
+    dragOverRef.current = null
+    dragPointerIdRef.current = null
+    pointerStartRef.current = null
+  }, [])
+
+  const handleFramePointerDown = useCallback((slotIndex, canDrag, event) => {
+    if (!isFrameEditMode) return
+    event.stopPropagation()
+    setSelectedFrameIndex(slotIndex)
+
+    if (!canDrag) {
+      clearFrameDragState()
+      return
+    }
+
+    dragPointerIdRef.current = event.pointerId ?? null
+    pointerStartRef.current = {
+      slotIndex,
+      startX: event.clientX,
+      startY: event.clientY,
+      canDrag,
+      pointerId: dragPointerIdRef.current,
+    }
+    // Reset any prior drag state. We only start dragging after moving past a threshold.
+    setDragSourceFrameIndex(null)
+    setDragOverFrameIndex(null)
+    dragSourceRef.current = null
+    dragOverRef.current = null
+  }, [isFrameEditMode, clearFrameDragState])
+
+  // Pointer-based drag tracking (more reliable than HTML5 drag/drop here).
+  useEffect(() => {
+    if (!isFrameEditMode) return
+
+    const handlePointerMove = (event) => {
+      const start = pointerStartRef.current
+      if (!start) return
+      if (start.pointerId !== null && event.pointerId !== undefined && event.pointerId !== start.pointerId) {
+        return
+      }
+
+      // Start dragging only after a small movement threshold so taps can select.
+      if (dragSourceRef.current === null) {
+        if (!start.canDrag) return
+        const dx = event.clientX - start.startX
+        const dy = event.clientY - start.startY
+        const distance = Math.hypot(dx, dy)
+        if (distance < FRAME_DRAG_THRESHOLD_PX) return
+
+        dragSourceRef.current = start.slotIndex
+        dragOverRef.current = start.slotIndex
+        setDragSourceFrameIndex(start.slotIndex)
+        setDragOverFrameIndex(start.slotIndex)
+      }
+
+      const el = document.elementFromPoint(event.clientX, event.clientY)
+      const slotEl = el?.closest?.('[data-frame-slot-index]')
+      const nextIndex = slotEl ? Number(slotEl.dataset.frameSlotIndex) : null
+      if (Number.isInteger(nextIndex)) {
+        if (nextIndex !== dragOverRef.current) {
+          setDragOverFrameIndex(nextIndex)
+        }
+      } else if (dragOverRef.current !== null) {
+        setDragOverFrameIndex(null)
+      }
+    }
+
+    const handlePointerUp = (event) => {
+      const start = pointerStartRef.current
+      if (start?.pointerId !== null && event.pointerId !== undefined && event.pointerId !== start.pointerId) {
+        return
+      }
+      const source = dragSourceRef.current ?? dragSourceFrameIndex
+      const target = dragOverRef.current ?? dragOverFrameIndex
+      if (Number.isInteger(source) && Number.isInteger(target) && source !== target) {
+        swapFrames(source, target)
+        setSelectedFrameIndex(target)
+      } else if (start?.slotIndex !== undefined && start?.slotIndex !== null) {
+        // A tap (no drag) should still leave the frame selected.
+        setSelectedFrameIndex(start.slotIndex)
+      }
+      clearFrameDragState()
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+    }
+  }, [
+    isFrameEditMode,
+    dragSourceFrameIndex,
+    dragOverFrameIndex,
+    swapFrames,
+    clearFrameDragState,
+  ])
+
+  const frameSlots = useMemo(() => {
+    const normalized = normalizeFrameState(frameState, slotCount, photosLength)
+    return Array.from({ length: slotCount }, (_, slotIndex) => {
+      const photoIndex = normalized.order[slotIndex]
+      const photoSrc = Number.isInteger(photoIndex) ? photos?.[photoIndex] : null
+      const isVisible = normalized.visibility[slotIndex] !== false
+      return {
+        slotIndex,
+        photoIndex,
+        photoSrc,
+        isVisible,
+        label: getPhotoLabel(photoIndex, slotIndex),
+      }
+    })
+  }, [frameState, slotCount, photosLength, photos])
+
+  const selectedFrame = selectedFrameIndex !== null ? frameSlots[selectedFrameIndex] : null
+  const hasSelectedFrame = Boolean(selectedFrame)
+  const selectedFrameVisible = selectedFrame?.isVisible !== false
+  const hasHiddenFrames = frameSlots.some(slot => !slot.isVisible)
+
+  const toggleSelectedFrameVisibility = useCallback(() => {
+    if (selectedFrameIndex === null || !frameSlots[selectedFrameIndex]) return
+    toggleFrameVisibility(selectedFrameIndex)
+  }, [selectedFrameIndex, frameSlots, toggleFrameVisibility])
 
   // ----------------------------------------
   // ELEMENT HANDLERS
@@ -704,12 +1086,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     setSelectedElementId(null)
     setIsRotating(false)
     setRotationLabel(null)
+    setSelectedFrameIndex(null)
+    setDragSourceFrameIndex(null)
+    setDragOverFrameIndex(null)
+    dragSourceRef.current = null
+    dragOverRef.current = null
+    dragPointerIdRef.current = null
+    pointerStartRef.current = null
   }, [])
 
   const selectedElement = placedElements.find(el => el.id === selectedElementId)
   const selectedLocked = selectedElement?.locked
-  const showToolbar = selectedElementId && toolbarPosition && !isExporting && !isRotating
-  const showRotationLabel = isRotating && rotationLabel && rotationHandlePosition && !isExporting
+  const showToolbar = selectedElementId && toolbarPosition && !isExporting && !isRotating && !isFrameEditMode
+  const showRotationLabel = isRotating && rotationLabel && rotationHandlePosition && !isExporting && !isFrameEditMode
 
   const updateToolbarPosition = useCallback((targetEl) => {
     const container = canvasContainerRef.current
@@ -775,7 +1164,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   }, [selectedElementId, updateElement, updateToolbarPosition])
 
   useEffect(() => {
-    if (!selectedElementId || isExporting) {
+    if (!selectedElementId || isExporting || isFrameEditMode) {
       setToolbarPosition(null)
       setRotationHandlePosition(null)
       setIsRotating(false)
@@ -783,7 +1172,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       return
     }
     updateToolbarPosition()
-  }, [selectedElementId, placedElements, containerRect.width, containerRect.height, isExporting, updateToolbarPosition])
+  }, [selectedElementId, placedElements, containerRect.width, containerRect.height, isExporting, isFrameEditMode, updateToolbarPosition])
 
   // Keyboard delete for selected element
   useEffect(() => {
@@ -806,6 +1195,68 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedElementId, deleteElement])
+
+  // Keyboard shortcuts: undo/redo frame edits and escape to exit frame mode.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const target = e.target
+      const isEditable = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      )
+      if (isEditable) return
+
+      if (e.key === 'Escape' && isFrameEditMode) {
+        e.preventDefault()
+        if (dragSourceFrameIndex !== null || dragOverFrameIndex !== null) {
+          setDragSourceFrameIndex(null)
+          setDragOverFrameIndex(null)
+          dragSourceRef.current = null
+          dragOverRef.current = null
+          dragPointerIdRef.current = null
+          pointerStartRef.current = null
+        } else if (selectedFrameIndex !== null) {
+          setSelectedFrameIndex(null)
+        } else {
+          setIsFrameEditMode(false)
+        }
+        return
+      }
+
+      const isMeta = e.metaKey || e.ctrlKey
+      if (!isMeta) return
+
+      const key = String(e.key || '').toLowerCase()
+      if (key === 'z') {
+        const shouldRedo = e.shiftKey
+        const canAct = shouldRedo ? canRedoFrames : canUndoFrames
+        if (!canAct) return
+        e.preventDefault()
+        if (shouldRedo) redoFrameAction()
+        else undoFrameAction()
+        return
+      }
+
+      if (key === 'y') {
+        if (!canRedoFrames) return
+        e.preventDefault()
+        redoFrameAction()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    isFrameEditMode,
+    dragSourceFrameIndex,
+    dragOverFrameIndex,
+    selectedFrameIndex,
+    canUndoFrames,
+    canRedoFrames,
+    undoFrameAction,
+    redoFrameAction,
+  ])
 
 
   // ----------------------------------------
@@ -855,6 +1306,104 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       height: '100%',
     }
   }
+
+  const renderPhotoGrid = () => (
+    <div className="relative z-10" style={getPhotoGridStyle()}>
+      {frameSlots.map((slot) => {
+        const isSelected = selectedFrameIndex === slot.slotIndex
+        const isDragSource = dragSourceFrameIndex === slot.slotIndex
+        const isDragTarget = dragOverFrameIndex === slot.slotIndex && dragSourceFrameIndex !== slot.slotIndex
+        const canDrag = isFrameEditMode && slot.isVisible && Boolean(slot.photoSrc)
+        const isDimmedByDrag = isFrameEditMode && isFrameDragActive && !isDragSource && !isDragTarget
+
+        const photoAlt = Number.isInteger(slot.photoIndex)
+          ? `Photo ${slot.photoIndex + 1}`
+          : `Photo ${slot.slotIndex + 1}`
+
+        const slotClasses = [
+          'relative overflow-hidden rounded-lg transition-all duration-150 select-none',
+          isFrameEditMode ? (canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer') : 'cursor-default',
+          canDrag ? 'touch-none' : '',
+          slot.isVisible
+            ? 'bg-white shadow-md'
+            : (isFrameEditMode ? 'bg-white/5 shadow-none' : 'bg-transparent shadow-none'),
+          isFrameEditMode ? 'border border-white/25' : '',
+          isSelected ? 'ring-1 ring-[#B8001F] ring-offset-1 scale-[1.005]' : '',
+          isDragSource ? 'ring-1 ring-[#B8001F] ring-offset-1 opacity-85 scale-[1.005]' : '',
+          isDragTarget ? 'ring-1 ring-white/80 ring-offset-1 scale-[1.01]' : '',
+          isDimmedByDrag ? 'opacity-70' : '',
+        ].filter(Boolean).join(' ')
+
+        return (
+          <div
+            key={slot.slotIndex}
+            className={slotClasses}
+            style={{ '--tw-ring-offset-color': 'rgba(15, 23, 42, 0.35)' }}
+            data-frame-slot-index={slot.slotIndex}
+            draggable={false}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => handleFramePointerDown(slot.slotIndex, canDrag, e)}
+          >
+            {slot.isVisible && slot.photoSrc && (
+              <img
+                src={slot.photoSrc}
+                alt={photoAlt}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            )}
+
+            {isFrameEditMode && (
+              <div className="absolute inset-0 flex flex-col justify-between p-3 pointer-events-none">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-black/60 text-white/90 shadow-sm" style={{paddingTop:"5px", paddingBottom:"5px", paddingLeft:"10px", paddingRight:"10px"}}>
+                    {slot.label}
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between gap-2">
+                  {isSelected && (
+                    <button
+                      type="button"
+                      className="pointer-events-auto px-3 py-1.5 rounded-md text-[11px] font-semibold bg-black/75 text-white hover:bg-black/85 transition-colors shadow-sm"
+                      style={{paddingTop:"5px", paddingBottom:"5px", paddingLeft:"10px", paddingRight:"10px"}}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFrameVisibility(slot.slotIndex)
+                      }}
+                    >
+                      {slot.isVisible ? 'Hide' : 'Show'}
+                    </button>
+                  )}
+                  {!slot.isVisible && (
+                    <div className="ml-auto px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-[#B8001F]/90 text-white shadow-sm"
+                    style={{paddingTop:"5px", paddingBottom:"5px", paddingLeft:"10px", paddingRight:"10px"}}>
+                      Hidden
+                    </div>
+                  )}
+                </div>
+
+                {isDragSource && isFrameDragActive && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white">
+                      Dragging
+                    </div>
+                  </div>
+                )}
+                {isDragTarget && isFrameDragActive && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white">
+                      Drop to swap
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 
   // ----------------------------------------
   // EXPORT FUNCTION - Pixel-identical to preview
@@ -944,11 +1493,20 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         ? PREVIEW_CARD_RADIUS_PX * cornerScale
         : Math.min(photoWidth, photoHeight) * 0.02
 
-      loadedPhotos.forEach((img, index) => {
-        if (!img || index >= layout.shots) return
+      const exportFrameState = normalizeFrameState(frameStateRef.current, slotCount, photosLength)
 
-        const col = index % cols
-        const row = Math.floor(index / cols)
+      for (let slotIndex = 0; slotIndex < slotCount; slotIndex += 1) {
+        const isVisible = exportFrameState.visibility[slotIndex] !== false
+        if (!isVisible) continue
+
+        const photoIndex = exportFrameState.order[slotIndex]
+        if (!Number.isInteger(photoIndex)) continue
+
+        const img = loadedPhotos[photoIndex]
+        if (!img) continue
+
+        const col = slotIndex % cols
+        const row = Math.floor(slotIndex / cols)
 
         const x = paddingX + (col * (photoWidth + gapX))
         const y = paddingY + (row * (photoHeight + gapY))
@@ -969,7 +1527,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         ctx.clip()
         drawImageCover(ctx, img, x, y, photoWidth, photoHeight)
         ctx.restore()
-      })
+      }
 
       // LAYER 3: Elements (clipped to frame)
       ctx.save()
@@ -1055,8 +1613,34 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // ----------------------------------------
   
   // Panel content - shared between side panel and bottom sheet
-  const renderPanelContent = (isBottomSheet = false) => (
-    <>
+  const renderPanelContent = (isBottomSheet = false) => {
+    if (isFrameEditMode) {
+      return (
+        <FrameEditPanel
+          isBottomSheet={isBottomSheet}
+          frameSlots={frameSlots}
+          selectedFrameIndex={selectedFrameIndex}
+          selectedFrame={selectedFrame}
+          selectedFrameVisible={selectedFrameVisible}
+          hasSelectedFrame={hasSelectedFrame}
+          hasHiddenFrames={hasHiddenFrames}
+          canUndoFrames={canUndoFrames}
+          canRedoFrames={canRedoFrames}
+          isExportDisabled={!loadedPhotos.length}
+          onSelectFrame={setSelectedFrameIndex}
+          onUndo={undoFrameAction}
+          onRedo={redoFrameAction}
+          onToggleSelectedVisibility={toggleSelectedFrameVisibility}
+          onShowAll={showAllFrames}
+          onExport={handleExport}
+          onReset={onReset}
+          onDoneEditing={toggleFrameEditMode}
+        />
+      )
+    }
+
+    return (
+      <>
       {/* === FIXED HEADER AREA === */}
       <div className="space-y-2" style={{ padding: isBottomSheet ? '12px 16px 6px 16px' : '12px 10px 6px 10px' }}>
         {/* Main Tabs - Background / Elements */}
@@ -1257,25 +1841,40 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         <button
           onClick={handleExport}
           disabled={!loadedPhotos.length}
-          className="w-full py-3 btn-primary text-white font-bold text-base 
-                     shadow-lg hover:shadow-xl hover:shadow-[#B8001F]/20 transition-all
+          className="w-full py-2.5 rounded-lg btn-primary text-white font-bold text-[15px]
+                     shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
                      disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ borderRadius: '8px' }}
         >
           Download
         </button>
-        <button
-          onClick={onReset}
-          className="w-full py-2 text-sm
-                     text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] 
-                     transition-all font-semibold"
-          style={{ background: 'transparent', marginTop: '8px' }}
-        >
-          Start Over
-        </button>
+         <div className="mt-4 flex items-center justify-center gap-3"
+        style={{marginTop: '5px'}}>
+          <button
+            onClick={onReset}
+            className="py-2 text-sm font-bold transition-all
+                       text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            style={{ background: 'transparent', marginRight: '4px' }}
+          >
+            Start Over
+          </button>
+          <span
+            className="h-4 bg-[var(--color-text-secondary)] opacity-60"
+            style={{ width: '1.5px' }}
+          />
+          <button
+            type="button"
+            onClick={toggleFrameEditMode}
+            aria-pressed={isFrameEditMode}
+            className="py-2 text-sm font-bold frame-edit-action"
+            style={{ background: 'transparent', marginLeft: '4px' }}
+          >
+            Edit Frames
+          </button>
+        </div>
       </div>
     </>
-  )
+    )
+  }
   
   // Mobile: Bottom sheet snap points (in vh)
   // For vertical layouts: lower default so canvas is more visible
@@ -1438,26 +2037,23 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
                 }}
               />
 
-              {/* Photo Grid */}
-              <div className="relative z-10" style={getPhotoGridStyle()}>
-                {photos.slice(0, layout?.shots || 4).map((photo, index) => (
-                  <div
-                    key={index}
-                    className="relative overflow-hidden rounded-lg shadow-md bg-white"
-                  >
-                    <img
-                      src={photo}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      draggable={false}
-                    />
+              {isFrameEditMode && (
+                <div className="absolute inset-x-0 top-3 z-[70] flex justify-center pointer-events-none">
+                  <div className="px-4 py-2 rounded-full text-[11px] font-semibold bg-black/70 text-white shadow-sm">
+                    {isFrameDragActive ? 'Drop on another frame to swap' : 'Swap frames • Tap to hide/show'}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Photo Grid */}
+              {renderPhotoGrid()}
 
               {/* Placed Elements */}
               <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none">
-                <div className="relative w-full h-full pointer-events-auto">
+                <div
+                  className="relative w-full h-full"
+                  style={{ pointerEvents: isFrameEditMode ? 'none' : 'auto' }}
+                >
                   {placedElements.map(element => (
                     <PlacedElement
                       key={element.id}
@@ -1491,7 +2087,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               )}
 
               {/* Moveable */}
-              {selectedElementId && !isExporting && !selectedLocked && (
+              {selectedElementId && !isExporting && !selectedLocked && !isFrameEditMode && (
                 <Moveable
                   target={`.placed-element[data-element-id="${selectedElementId}"]`}
                   container={canvasEl}
@@ -1637,26 +2233,24 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               }}
             />
 
-            {/* Photo Grid - LAYER 2 (stable, doesn't remount on bg change) */}
-            <div className="relative z-10" style={getPhotoGridStyle()}>
-              {photos.slice(0, layout?.shots || 4).map((photo, index) => (
-                <div
-                  key={index}
-                  className="relative overflow-hidden rounded-lg shadow-md bg-white"
-                >
-                  <img
-                    src={photo}
-                    alt={`Photo ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    draggable={false}
-                  />
+            {isFrameEditMode && (
+              <div className="absolute inset-x-0 top-3 z-[70] flex justify-center pointer-events-none">
+                <div className="px-4 py-2 rounded-full text-[11px] font-semibold bg-black/40 text-white shadow-sm"
+                style={{padding:"5px", marginTop:"-10px"}}>
+                  {isFrameDragActive ? 'Drop on another frame to swap' : 'Swap frames • Tap to hide/show'}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Photo Grid - LAYER 2 (stable, doesn't remount on bg change) */}
+            {renderPhotoGrid()}
 
             {/* Placed Elements - LAYER 3 (clipped to frame) */}
             <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none">
-              <div className="relative w-full h-full pointer-events-auto">
+              <div
+                className="relative w-full h-full"
+                style={{ pointerEvents: isFrameEditMode ? 'none' : 'auto' }}
+              >
                 {placedElements.map(element => (
                   <PlacedElement
                     key={element.id}
@@ -1691,7 +2285,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             )}
 
             {/* Moveable for selected element - transform-only, single source of truth */}
-            {selectedElementId && !isExporting && !selectedLocked && (
+            {selectedElementId && !isExporting && !selectedLocked && !isFrameEditMode && (
               <Moveable
                 target={`.placed-element[data-element-id="${selectedElementId}"]`}
                 container={canvasEl}
