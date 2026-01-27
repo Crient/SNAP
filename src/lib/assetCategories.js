@@ -14,19 +14,19 @@
 export const ELEMENT_CATEGORIES = {
   chrome: {
     name: 'Chrome / Metallic',
-    elements: [11, 12, 14, 15, 16, 18, 19, 20, 27, 28, 29, 30, 33, 34, 36, 38, 43, 51, 56, 58, 59, 60, 95, 96, 97, 98, 99]
+    elements: [11, 12, 14, 15, 16, 18, 19, 20, 27, 28, 29, 30, 33, 34, 36, 38, 43, 51, 56, 58, 59, 60, 95, 96, 97, 98, 99, 108, 112, 113, 114, 115, 116, 119, 125, 126, 127, 130, 153]
   },
   y2k: {
     name: 'Y2K / Digital',
-    elements: [3, 5, 7, 8, 9, 10, 13, 15, 16, 17, 22, 23, 24, 25, 26, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 45, 46, 47, 48, 49, 50, 52, 53, 54, 55, 58, 60, 65, 74, 81, 82, 83, 90, 91, 94, 96]
+    elements: [3, 5, 7, 8, 9, 10, 13, 15, 16, 17, 22, 23, 24, 25, 26, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 45, 46, 47, 48, 49, 50, 52, 53, 54, 55, 58, 60, 65, 74, 81, 82, 83, 90, 91, 94, 96, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170]
   },
   cute: {
     name: 'Cute / Playful',
-    elements: [1, 2, 3, 4, 6, 12, 13, 18, 19, 21, 27, 28, 29, 35, 40, 43, 44, 50, 51, 52, 55, 57, 62, 67, 68, 70, 78, 79, 80, 81, 82, 84, 86, 87, 88, 89, 90, 92, 93, 95, 96, 97, 98, 99, 100]
+    elements: [1, 2, 3, 4, 6, 12, 13, 18, 19, 21, 27, 28, 29, 35, 40, 43, 44, 50, 51, 52, 55, 57, 62, 67, 68, 70, 78, 79, 80, 81, 82, 84, 86, 87, 88, 89, 90, 92, 93, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170]
   },
   retro: {
     name: 'Retro / Groovy',
-    elements: [2, 4, 5, 7, 8, 9, 10, 17, 23, 25, 26, 31, 32, 34, 35, 38, 39, 45, 48, 49, 53, 54, 55, 57, 61, 62, 63, 64, 65, 66, 67, 68, 69, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 85, 88, 91, 92, 93, 94]
+    elements: [2, 4, 5, 7, 8, 9, 10, 17, 23, 25, 26, 31, 32, 34, 35, 38, 39, 45, 48, 49, 53, 54, 55, 57, 61, 62, 63, 64, 65, 66, 67, 68, 69, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 85, 88, 91, 92, 93, 94, 101, 102, 103, 104, 105, 106, 107, 109, 110, 111, 117, 118, 120, 121, 122, 123, 124, 128, 129, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170]
   }
 };
 
@@ -44,7 +44,7 @@ export function getElementCategories(elementNum) {
 // Helper: Get all elements for a category (or all if category is 'all')
 export function getElementsByCategory(category) {
   if (category === 'all') {
-    return Array.from({ length: 100 }, (_, i) => i + 1);
+    return Array.from({ length: 170 }, (_, i) => i + 1);
   }
   return ELEMENT_CATEGORIES[category]?.elements || [];
 }
@@ -62,36 +62,44 @@ export function getElementThumbPath(num) {
 // ============================================
 // SCENE BACKGROUND CATEGORIES
 // ============================================
-// Categories: cute, y2k, retro, clean, party
+// Categories: cute, y2k, retro, clean, party, anime, cartoon
 // Will be populated after scanning scenes
 
 export const SCENE_CATEGORIES = {
   cute: {
     name: 'Cute / Playful',
-    scenes: [2, 14, 15, 17, 18, 21, 22, 27, 28, 29] // Pink sparkles, glitter, fur, pastels, swirls, stars, butterfly
+    scenes: [2, 14, 15, 17, 18, 21, 22, 27, 28, 29, 33, 36, 39, 46, 49, 50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 65, 67, 73, 78, 85] // Pink sparkles, glitter, fur, pastels, swirls, stars, butterfly
   },
   y2k: {
     name: 'Y2K / Digital',
-    scenes: [1, 3, 5, 6, 7, 8, 9, 10, 13, 16, 17, 19, 21, 23, 27] // Chrome, holographic, liquid metal, iridescent
+    scenes: [1, 3, 5, 6, 7, 8, 9, 10, 13, 16, 17, 19, 21, 23, 27, 34, 35, 37, 41, 42, 44, 45, 47, 57, 58, 59, 63, 64, 66, 68, 69, 71, 74, 75, 76, 77, 82, 84, 85] // Chrome, holographic, liquid metal, iridescent
   },
   retro: {
     name: 'Retro / Groovy',
-    scenes: [4, 11, 24, 26, 28, 29, 30] // Sunburst, watercolor, marble swirl, stars, butterfly, groovy
+    scenes: [4, 11, 24, 26, 28, 29, 30, 31, 32, 34, 35, 38, 40, 41, 43, 44, 47, 48, 63, 64, 66, 68, 69, 70, 71, 72, 76, 79, 80, 81, 83] // Sunburst, watercolor, marble swirl, stars, butterfly, groovy
   },
   clean: {
     name: 'Clean / Aesthetic',
-    scenes: [1, 2, 3, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 24, 25, 26] // Gradients, minimal, soft textures
+    scenes: [1, 2, 3, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 24, 25, 26, 32, 33, 36, 37, 38, 39, 40, 43, 45, 46, 48, 49, 51, 53, 54, 55, 57, 59, 61, 65, 67, 68, 78, 82, 84] // Gradients, minimal, soft textures
   },
   party: {
     name: 'Party / Celebration',
-    scenes: [4, 8, 22, 28, 30] // Sunburst, holographic foil, rainbow sparkles, stars, groovy burst
+    scenes: [4, 8, 22, 28, 30, 31, 34, 35, 42, 44, 46, 47, 50, 52, 56, 58, 60, 62, 63, 64, 66, 70, 71, 72, 73, 74, 75, 77, 79, 80, 81, 83, 85] // Sunburst, holographic foil, rainbow sparkles, stars, groovy burst
+  },
+  anime: {
+    name: 'Anime / Show',
+    scenes: [37, 57, 58, 59, 65, 70, 72, 78, 79, 80, 81, 82, 83]
+  },
+  cartoon: {
+    name: 'Cartoon',
+    scenes: [50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 67, 73, 74, 75, 76, 77]
   }
 };
 
 // Helper: Get all scenes for a category
 export function getScenesByCategory(category) {
   if (category === 'all') {
-    return Array.from({ length: 30 }, (_, i) => i + 1);
+    return Array.from({ length: 85 }, (_, i) => i + 1);
   }
   return SCENE_CATEGORIES[category]?.scenes || [];
 }
@@ -109,36 +117,40 @@ export function getSceneThumbPath(num) {
 // ============================================
 // PATTERN BACKGROUND CATEGORIES
 // ============================================
-// Categories: hearts, grid, waves, texture, minimal
+// Categories: hearts, grid, waves, texture, minimal, cartoon
 // Will be populated after scanning patterns
 
 export const PATTERN_CATEGORIES = {
   hearts: {
     name: 'Hearts / Cute',
-    patterns: [2, 5, 10, 14] // Pixel cats, bows, hearts checker, cute items
+    patterns: [2, 5, 10, 14, 25, 35, 37, 39, 40] // Pixel cats, bows, hearts checker, cute items
   },
   grid: {
     name: 'Grid / Checker',
-    patterns: [1, 5, 7, 8, 9, 10, 11, 12, 15] // Various checkers
+    patterns: [1, 5, 7, 8, 9, 10, 11, 12, 15, 16, 17, 19, 26, 28, 29, 31] // Various checkers
   },
   waves: {
     name: 'Waves / Organic',
-    patterns: [1, 3, 8, 9, 12, 13, 15] // Wavy/organic patterns
+    patterns: [1, 3, 8, 9, 12, 13, 15, 18, 20, 21, 22, 24, 25, 27, 29, 30, 33, 34, 35, 36, 37, 38, 39, 40] // Wavy/organic patterns
   },
   texture: {
     name: 'Texture / Noise',
-    patterns: [4, 6] // Cow print, red fabric
+    patterns: [4, 6, 27, 28, 30, 31, 32, 33, 38] // Cow print, red fabric
   },
   minimal: {
     name: 'Minimal / Clean',
-    patterns: [11, 12] // Simple checker, grid lines
+    patterns: [11, 12, 16, 17, 18, 19, 22, 23, 24, 26, 32, 34, 36] // Simple checker, grid lines
+  },
+  cartoon: {
+    name: 'Cartoon',
+    patterns: [20, 21, 23] // Character/smiley patterns
   }
 };
 
 // Helper: Get all patterns for a category
 export function getPatternsByCategory(category) {
   if (category === 'all') {
-    return Array.from({ length: 15 }, (_, i) => i + 1);
+    return Array.from({ length: 40 }, (_, i) => i + 1);
   }
   return PATTERN_CATEGORIES[category]?.patterns || [];
 }
