@@ -156,8 +156,14 @@ export function getPatternsByCategory(category) {
 }
 
 // Generate pattern paths
+const WEBP_ORIGINAL_PATTERNS = new Set([33])
+
 export function getPatternPath(num) {
-  return `/assets/backgrounds/patterns/bgp_${String(num).padStart(3, '0')}.png`;
+  const padded = String(num).padStart(3, '0')
+  // Some patterns have optimized WebP originals available.
+  // Prefer those when present to reduce transfer size.
+  const ext = WEBP_ORIGINAL_PATTERNS.has(num) ? 'webp' : 'png'
+  return `/assets/backgrounds/patterns/bgp_${padded}.${ext}`;
 }
 
 // Generate pattern thumbnail paths (WebP, 256-384px)
