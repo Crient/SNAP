@@ -75,20 +75,12 @@ function useCamera({ aspectRatio } = {}) {
         ])
 
         presets = [
-          makePreset(sizePresets[0][0], sizePresets[0][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
-          makePreset(sizePresets[1][0], sizePresets[1][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
-          makePreset(sizePresets[2][0], sizePresets[2][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
+          makePreset(sizePresets[0][0], sizePresets[0][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
+          makePreset(sizePresets[1][0], sizePresets[1][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
+          makePreset(sizePresets[2][0], sizePresets[2][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
           makePreset(sizePresets[0][0], sizePresets[0][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
           makePreset(sizePresets[1][0], sizePresets[1][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
           makePreset(sizePresets[2][0], sizePresets[2][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
-          {
-            video: {
-              facingMode: 'user',
-              ...(isIPhone ? { resizeMode: 'none' } : {}),
-              frameRate: { ideal: 30, max: 30 },
-            },
-            audio: false,
-          },
         ]
       } else {
         // Try high → medium (with aspect) → fallback (no aspect)
@@ -102,9 +94,28 @@ function useCamera({ aspectRatio } = {}) {
       }
 
       let lastError = null
-      for (const constraints of presets) {
+      let rejectedAspect = false
+      for (let presetIndex = 0; presetIndex < presets.length; presetIndex += 1) {
+        const constraints = presets[presetIndex]
         try {
           const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+          const videoTrack = mediaStream.getVideoTracks?.()[0]
+          const settings = videoTrack?.getSettings?.() || {}
+
+          if (isIPhone && isPortrait && typeof aspectRatio === 'number') {
+            const width = settings.width || 0
+            const height = settings.height || 0
+            if (width && height) {
+              const normalizedRatio = Math.min(width, height) / Math.max(width, height)
+              const aspectDelta = Math.abs(normalizedRatio - aspectRatio)
+              if (aspectDelta > 0.02) {
+                rejectedAspect = true
+                mediaStream.getTracks().forEach(track => track.stop())
+                continue
+              }
+            }
+          }
+
           streamRef.current = mediaStream
           setStream(mediaStream)
           setIsLoading(false)
@@ -120,6 +131,9 @@ function useCamera({ aspectRatio } = {}) {
       }
 
       // If all presets failed, throw last error to show a message
+      if (rejectedAspect && !lastError) {
+        throw new Error('Could not find a camera matching the 9:16 aspect ratio.')
+      }
       throw lastError || new Error('Failed to access camera.')
     } catch (err) {
       setIsLoading(false)
