@@ -104,32 +104,8 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     }
   }, [stream])
 
-  useEffect(() => {
-    if (!stream || !isIPhone || targetAspectRatio >= 1) return
-    const track = stream.getVideoTracks?.()[0]
-    if (!track?.applyConstraints) return
-
-    const applyPortraitConstraints = async () => {
-      try {
-        await track.applyConstraints({
-          aspectRatio: { exact: targetAspectRatio },
-          width: { ideal: 1080 },
-          height: { ideal: 1920 },
-          resizeMode: 'none',
-          advanced: [
-            { width: 1080, height: 1920 },
-            { width: 720, height: 1280 },
-            { width: 540, height: 960 },
-            { aspectRatio: targetAspectRatio },
-          ],
-        })
-      } catch {
-        // Ignore constraint failures; browser will fall back
-      }
-    }
-
-    applyPortraitConstraints()
-  }, [stream, isIPhone, targetAspectRatio])
+  const isIPhonePortraitTile = isIPhone && targetAspectRatio < 1
+  const IPHONE_UPWARD_BIAS = 0.1
 
   // Calculate crop region to match CSS object-fit: cover
   const calculateCropRegion = useCallback(() => {
@@ -151,11 +127,13 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
       srcX = (videoWidth - srcWidth) / 2
     } else {
       srcHeight = videoWidth / targetAspectRatio
-      srcY = (videoHeight - srcHeight) / 2
+      const availableCrop = videoHeight - srcHeight
+      const biasOffset = isIPhonePortraitTile ? (availableCrop * IPHONE_UPWARD_BIAS) : 0
+      srcY = Math.max(0, (availableCrop / 2) - biasOffset)
     }
 
     return { srcX, srcY, srcWidth, srcHeight }
-  }, [videoDimensions, targetAspectRatio])
+  }, [videoDimensions, targetAspectRatio, isIPhonePortraitTile])
 
   // Capture a single photo with proper cropping
   const capturePhoto = useCallback(() => {
@@ -339,6 +317,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
               playsInline
               muted
               className="w-full h-full object-cover camera-mirror"
+              style={isIPhonePortraitTile ? { objectPosition: `50% ${50 - (IPHONE_UPWARD_BIAS * 100)}%` } : undefined}
             />
 
             {/* Ring Light - Exposure Boost Layer */}

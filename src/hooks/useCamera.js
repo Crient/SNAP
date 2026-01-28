@@ -21,10 +21,7 @@ function useCamera({ aspectRatio } = {}) {
     /iPad|iPhone|iPod/i.test(userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   )
-  const isIPhone = typeof window !== 'undefined' && (
-    /iPhone|iPod/i.test(userAgent) ||
-    (isIOS && Math.min(window.screen?.width || 0, window.screen?.height || 0) < 768)
-  )
+  const isIPhone = typeof navigator !== 'undefined' && /iPhone|iPod/i.test(userAgent)
 
   const startCamera = useCallback(async () => {
     setIsLoading(true)
@@ -49,38 +46,32 @@ function useCamera({ aspectRatio } = {}) {
             [960, 540],
           ]
 
-      const makePreset = (width, height, aspectSetting, sizeConstraint = 'ideal', advancedOverrides = null) => ({
+      const makePreset = (width, height, aspectSetting, sizeConstraint = 'ideal') => ({
         video: {
           facingMode: 'user',
           width: { [sizeConstraint]: width },
           height: { [sizeConstraint]: height },
           ...(aspectSetting ? { aspectRatio: aspectSetting } : {}),
-          ...(advancedOverrides ? { advanced: advancedOverrides } : {}),
-          ...(isIPhone ? { resizeMode: 'none' } : {}),
           frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
       })
 
-      const useExactAspect = typeof aspectRatio === 'number' && isMobile && !isIOS
+      const useExactAspect = typeof aspectRatio === 'number' && isMobile && !isIPhone
       const exactAspect = useExactAspect ? { exact: aspectRatio } : null
       const idealAspect = typeof aspectRatio === 'number' ? { ideal: aspectRatio } : null
 
       let presets = []
 
       if (isIPhone && isPortrait) {
-        const portraitAdvanced = (width, height, aspect) => ([
-          { width, height },
-          { aspectRatio: aspect },
-        ])
-
         presets = [
-          makePreset(sizePresets[0][0], sizePresets[0][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
-          makePreset(sizePresets[1][0], sizePresets[1][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
-          makePreset(sizePresets[2][0], sizePresets[2][1], { exact: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
-          makePreset(sizePresets[0][0], sizePresets[0][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
-          makePreset(sizePresets[1][0], sizePresets[1][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
-          makePreset(sizePresets[2][0], sizePresets[2][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
+          makePreset(1440, 1080, null, 'exact'),
+          makePreset(1440, 1080, null, 'ideal'),
+          makePreset(1280, 960, null, 'exact'),
+          makePreset(1280, 960, null, 'ideal'),
+          makePreset(640, 480, null, 'exact'),
+          makePreset(640, 480, null, 'ideal'),
+          makePreset(1280, 720, null, 'ideal'),
         ]
       } else {
         // Try high → medium (with aspect) → fallback (no aspect)
@@ -94,28 +85,18 @@ function useCamera({ aspectRatio } = {}) {
       }
 
       let lastError = null
-      let rejectedAspect = false
-      for (let presetIndex = 0; presetIndex < presets.length; presetIndex += 1) {
-        const constraints = presets[presetIndex]
+      for (const constraints of presets) {
         try {
           const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-          const videoTrack = mediaStream.getVideoTracks?.()[0]
-          const settings = videoTrack?.getSettings?.() || {}
-
-          if (isIPhone && isPortrait && typeof aspectRatio === 'number') {
-            const width = settings.width || 0
-            const height = settings.height || 0
-            if (width && height) {
-              const normalizedRatio = Math.min(width, height) / Math.max(width, height)
-              const aspectDelta = Math.abs(normalizedRatio - aspectRatio)
-              if (aspectDelta > 0.02) {
-                rejectedAspect = true
-                mediaStream.getTracks().forEach(track => track.stop())
-                continue
-              }
-            }
+          if (import.meta.env?.DEV && isIPhone && isPortrait) {
+            const settings = mediaStream.getVideoTracks?.()[0]?.getSettings?.() || {}
+            // eslint-disable-next-line no-console
+            console.log('[camera] iPhone portrait stream settings', {
+              width: settings.width,
+              height: settings.height,
+              aspectRatio: settings.aspectRatio,
+            })
           }
-
           streamRef.current = mediaStream
           setStream(mediaStream)
           setIsLoading(false)
@@ -131,9 +112,6 @@ function useCamera({ aspectRatio } = {}) {
       }
 
       // If all presets failed, throw last error to show a message
-      if (rejectedAspect && !lastError) {
-        throw new Error('Could not find a camera matching the 9:16 aspect ratio.')
-      }
       throw lastError || new Error('Failed to access camera.')
     } catch (err) {
       setIsLoading(false)
@@ -156,7 +134,7 @@ function useCamera({ aspectRatio } = {}) {
       setError(errorMessage)
       return null
     }
-  }, [aspectRatio, isMobile])
+  }, [aspectRatio, isIPhone, isIOS, isMobile])
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
