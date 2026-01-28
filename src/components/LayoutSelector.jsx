@@ -50,21 +50,18 @@ function LayoutSelector({ layouts, onSelect, onBack }) {
     const grid = layout.gridByOrientation?.vertical || layout.grid
     
     const gridStyle = {
-      display: 'grid',
       gridTemplateColumns: `repeat(${grid.cols}, 1fr)`,
       gridTemplateRows: `repeat(${grid.rows}, 1fr)`,
-      gap: '4px',
     }
 
     const cells = Array(layout.shots).fill(null)
 
     return (
       <div
-        className="relative w-full aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden"
-        style={{ padding: '17px' }}
+        className="layout-preview relative w-full aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden"
       >
         <div className="relative w-full h-full flex flex-col">
-          <div className="flex-1" style={gridStyle}>
+          <div className="layout-preview-grid flex-1 w-full h-full" style={gridStyle}>
             {cells.map((_, i) => (
               <div 
                 key={i}

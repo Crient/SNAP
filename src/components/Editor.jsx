@@ -32,34 +32,76 @@ const BG_TYPES = {
   PATTERN: 'pattern',
 }
 
+const SOLID_COLOR_CATEGORIES = {
+  neutral: { name: 'Neutrals' },
+  warm: { name: 'Warm' },
+  cool: { name: 'Cool' },
+  bright: { name: 'Bright' },
+  bold: { name: 'Bold' },
+  dark: { name: 'Dark' },
+}
+
 const PREVIEW_CARD_RADIUS_PX = 8
 
-// Solid color options (18 curated colors, no PNG assets)
-// Order: Neutrals → Pastels → Bold → Dark
+// Solid color options (43 curated colors, no PNG assets)
+// Order: Neutrals → Warm Pastels → Cool Pastels → Brights → Rich/Bold → Dark
 // light: true means dark text needed for contrast
+// Note: Neutrals are spaced further apart so each looks visibly distinct.
 const SOLID_COLORS = [
-  // Core neutrals
-  { id: 'white', name: 'White', color: '#FFFFFF', light: true },
-  { id: 'cream', name: 'Cream', color: '#FAFAF7', light: true },
-  { id: 'light-gray', name: 'Light Gray', color: '#E6E6E6', light: true },
-  { id: 'medium-gray', name: 'Med Gray', color: '#CFCFCF', light: true },
-  { id: 'charcoal', name: 'Charcoal', color: '#1E1E1E', light: false },
-  { id: 'black', name: 'Black', color: '#000000', light: false },
-  // Soft pastels
-  { id: 'blush-pink', name: 'Blush', color: '#F6C1CC', light: true },
-  { id: 'lavender', name: 'Lavender', color: '#E6D9FF', light: true },
-  { id: 'baby-blue', name: 'Baby Blue', color: '#DCEBFF', light: true },
-  { id: 'mint', name: 'Mint', color: '#DFF3EA', light: true },
-  { id: 'peach', name: 'Peach', color: '#FFE3D6', light: true },
-  { id: 'butter-yellow', name: 'Butter', color: '#FFF3C4', light: true },
-  // Bold / aesthetic
-  { id: 'royal-blue', name: 'Royal', color: '#1E40FF', light: false },
-  { id: 'emerald-green', name: 'Emerald', color: '#0F766E', light: false },
-  { id: 'crimson-red', name: 'Crimson', color: '#E53935', light: false },
-  { id: 'deep-purple', name: 'Purple', color: '#5B2D8B', light: false },
+  // Neutrals (make them actually different)
+  { id: 'pure-white', name: 'White', color: '#FFFFFF', light: true, category: 'neutral' },
+  { id: 'ivory', name: 'Ivory', color: '#FFF7E8', light: true, category: 'neutral' },
+  { id: 'cream', name: 'Cream', color: '#F7F1E3', light: true, category: 'neutral' },
+  { id: 'sand', name: 'Sand', color: '#EADCC8', light: true, category: 'neutral' },
+  { id: 'light-gray', name: 'Light Gray', color: '#E1E5EA', light: true, category: 'neutral' },
+  { id: 'silver', name: 'Silver', color: '#C7CDD6', light: true, category: 'neutral' },
+  { id: 'slate-gray', name: 'Slate Gray', color: '#7A8595', light: false, category: 'neutral' },
+  { id: 'charcoal', name: 'Charcoal', color: '#1E1E1E', light: false, category: 'neutral' },
+  { id: 'black', name: 'Black', color: '#000000', light: false, category: 'neutral' },
+
+  // Warm pastels
+  { id: 'blush-pink', name: 'Blush', color: '#F6C1CC', light: true, category: 'warm' },
+  { id: 'rose', name: 'Rose', color: '#F7A3B5', light: true, category: 'warm' },
+  { id: 'cotton-candy', name: 'Cotton Candy', color: '#FFD1E8', light: true, category: 'warm' },
+  { id: 'peach', name: 'Peach', color: '#FFE3D6', light: true, category: 'warm' },
+  { id: 'apricot', name: 'Apricot', color: '#FFD3B6', light: true, category: 'warm' },
+  { id: 'butter-yellow', name: 'Butter', color: '#FFF3C4', light: true, category: 'warm' },
+  { id: 'vanilla', name: 'Vanilla', color: '#FFF0A6', light: true, category: 'warm' },
+  { id: 'soft-coral', name: 'Coral', color: '#FFB3A7', light: true, category: 'warm' },
+
+  // Cool pastels
+  { id: 'lavender', name: 'Lavender', color: '#E6D9FF', light: true, category: 'cool' },
+  { id: 'lilac', name: 'Lilac', color: '#D8B4FE', light: true, category: 'cool' },
+  { id: 'periwinkle', name: 'Periwinkle', color: '#C7D2FE', light: true, category: 'cool' },
+  { id: 'baby-blue', name: 'Baby Blue', color: '#DCEBFF', light: true, category: 'cool' },
+  { id: 'sky', name: 'Sky', color: '#BFE3FF', light: true, category: 'cool' },
+  { id: 'mint', name: 'Mint', color: '#DFF3EA', light: true, category: 'cool' },
+  { id: 'seafoam', name: 'Seafoam', color: '#BFEBD9', light: true, category: 'cool' },
+  { id: 'powder-green', name: 'Powder Green', color: '#CFEFD0', light: true, category: 'cool' },
+
+  // Brights
+  { id: 'sunflower', name: 'Sunflower', color: '#FFD400', light: true, category: 'bright' },
+  { id: 'tangerine', name: 'Tangerine', color: '#FF8A00', light: true, category: 'bright' },
+  { id: 'hot-pink', name: 'Hot Pink', color: '#FF4DA6', light: false, category: 'bright' },
+  { id: 'bright-red', name: 'Bright Red', color: '#FF2D2D', light: false, category: 'bright' },
+  { id: 'aqua', name: 'Aqua', color: '#00D4FF', light: true, category: 'bright' },
+  { id: 'lime', name: 'Lime', color: '#A3E635', light: true, category: 'bright' },
+
+  // Rich / bold
+  { id: 'crimson-red', name: 'Crimson', color: '#E11D48', light: false, category: 'bold' },
+  { id: 'wine', name: 'Wine', color: '#7F1D1D', light: false, category: 'bold' },
+  { id: 'royal-blue', name: 'Royal', color: '#1E40FF', light: false, category: 'bold' },
+  { id: 'cobalt', name: 'Cobalt', color: '#1D4ED8', light: false, category: 'bold' },
+  { id: 'emerald-green', name: 'Emerald', color: '#0F766E', light: false, category: 'bold' },
+  { id: 'jade', name: 'Jade', color: '#15803D', light: false, category: 'bold' },
+  { id: 'deep-purple', name: 'Purple', color: '#5B2D8B', light: false, category: 'bold' },
+  { id: 'indigo', name: 'Indigo', color: '#4338CA', light: false, category: 'bold' },
+
   // Dark tones
-  { id: 'midnight-blue', name: 'Midnight', color: '#0F172A', light: false },
-  { id: 'forest-green', name: 'Forest', color: '#1B4332', light: false },
+  { id: 'midnight-blue', name: 'Midnight', color: '#0F172A', light: false, category: 'dark' },
+  { id: 'navy', name: 'Navy', color: '#0B132B', light: false, category: 'dark' },
+  { id: 'forest-green', name: 'Forest', color: '#1B4332', light: false, category: 'dark' },
+  { id: 'deep-teal', name: 'Deep Teal', color: '#0F3D3E', light: false, category: 'dark' },
 ]
 
 // ============================================
@@ -492,6 +534,25 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const [bgCategory, setBgCategory] = useState('all')
   const [selectedBg, setSelectedBg] = useState({ type: BG_TYPES.SOLID, color: '#ffffff' }) // { type, num } or { type, color }
   const [loadedBgUrl, setLoadedBgUrl] = useState(null) // URL of fully loaded background
+
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  const handleConfirmReset = useCallback((event) => {
+    if (event?.preventDefault) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    setShowResetConfirm(true)
+  }, [])
+
+  const handleResetCancel = useCallback(() => {
+    setShowResetConfirm(false)
+  }, [])
+
+  const handleResetConfirm = useCallback(() => {
+    setShowResetConfirm(false)
+    onReset()
+  }, [onReset])
   const [bgTransitioning, setBgTransitioning] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   
@@ -651,17 +712,76 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       ? getPatternsByCategory(bgCategory)
       : []
 
+  const availableSolidColors = bgCategory === 'all'
+    ? SOLID_COLORS
+    : SOLID_COLORS.filter((solid) => solid.category === bgCategory)
+
   // Get all elements for current category (no pagination - scroll only)
   const availableElements = getElementsByCategory(elementCategory)
 
   // Get category options
-  const bgCategories = bgType === BG_TYPES.SCENE
-    ? { all: { name: 'All' }, ...SCENE_CATEGORIES }
-    : bgType === BG_TYPES.PATTERN
-      ? { all: { name: 'All' }, ...PATTERN_CATEGORIES }
-      : {}
+  const bgCategories = bgType === BG_TYPES.SOLID
+    ? { all: { name: 'All' }, ...SOLID_COLOR_CATEGORIES }
+    : bgType === BG_TYPES.SCENE
+      ? { all: { name: 'All' }, ...SCENE_CATEGORIES }
+      : bgType === BG_TYPES.PATTERN
+        ? { all: { name: 'All' }, ...PATTERN_CATEGORIES }
+        : {}
 
   const elementCategories = { all: { name: 'All' }, ...ELEMENT_CATEGORIES }
+
+  const resetConfirmModal = showResetConfirm ? (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center px-5">
+      <div
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        onClick={handleResetCancel}
+      />
+      <div className="relative z-10 w-80">
+        <div className="reminder-modal relative rounded-3xl px-2 py-10 shadow-2xl border border-[var(--color-border)] overflow-hidden text-center"
+        style={{width: "100%"}}>
+          <p
+            className="text-[30px] font-extrabold uppercase"
+            style={{ color: 'var(--color-brand-primary)', paddingTop: "10px"}}
+          >
+            Start Over?
+          </p>
+            <hr
+                aria-hidden="true"
+                className="mx-auto border-0"
+                style={{
+                  width: "70%",
+                  height: "1.5px",
+                  margin: "0 auto 14px",
+                  background:
+                    "linear-gradient(90deg, transparent, var(--divider-line, rgba(0,0,0,0.35)), transparent)",
+                  opacity: 1,
+                }}
+              />
+          <p className="mt-4 text-sm font-semibold text-[var(--color-text-secondary)] leading-6"
+          style={{marginBottom:"20px"}}>
+            This will clear your current edits.
+          </p>
+          <div className="mt-6 flex flex gap-2"
+          style={{marginBottom: "15px", paddingLeft: "10px", paddingRight: "10px"}}>
+            <button
+              type="button"
+              onClick={handleResetCancel}
+              className="flex-1 w-20 h-10  rounded-2xl glass text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleResetConfirm}
+              className="flex-1 h-10  w-20 ml-2 rounded-2xl btn-primary text-white font-bold text-sm"
+            >
+              Start Over
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
 
   // ----------------------------------------
   // EFFECTS
@@ -679,6 +799,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       .then(setLoadedPhotos)
       .catch(console.error)
   }, [photos])
+
+  useEffect(() => {
+    if (!showResetConfirm) return
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowResetConfirm(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showResetConfirm])
 
   // Keep a ref to the latest frame state for undo/redo helpers.
   useEffect(() => {
@@ -1633,7 +1766,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           onToggleSelectedVisibility={toggleSelectedFrameVisibility}
           onShowAll={showAllFrames}
           onExport={handleExport}
-          onReset={onReset}
+          onReset={handleConfirmReset}
           onDoneEditing={toggleFrameEditMode}
         />
       )
@@ -1727,7 +1860,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           className="flex gap-1.5 overflow-x-auto py-1 scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {activeTab === TABS.BACKGROUND && bgType !== BG_TYPES.SOLID && Object.entries(bgCategories).map(([key, cat]) => (
+          {activeTab === TABS.BACKGROUND && Object.entries(bgCategories).map(([key, cat]) => (
             <button
               key={key}
               onClick={() => setBgCategory(key)}
@@ -1775,7 +1908,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             className="grid gap-2"
             style={{ gridTemplateColumns: `repeat(${isBottomSheet ? 3 : panelGridCols}, minmax(0, 1fr))` }}
           >
-            {SOLID_COLORS.map((solid) => (
+            {availableSolidColors.map((solid) => (
               <button
                 key={solid.id}
                 onClick={() => handleSelectBg({ type: BG_TYPES.SOLID, color: solid.color })}
@@ -1841,7 +1974,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         <button
           onClick={handleExport}
           disabled={!loadedPhotos.length}
-          className="w-full py-2.5 rounded-lg btn-primary text-white font-bold text-[15px]
+          className="w-full py-4 rounded-md btn-primary text-white font-bold text-[15px]
                      shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -1850,7 +1983,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
          <div className="mt-4 flex items-center justify-center gap-3"
         style={{marginTop: '5px'}}>
           <button
-            onClick={onReset}
+            type="button"
+            onClick={handleConfirmReset}
             className="py-2 text-sm font-bold transition-all
                        text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             style={{ background: 'transparent', marginRight: '4px' }}
@@ -2177,6 +2311,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             {renderPanelContent(true)}
           </div>
         </div>
+
+        {resetConfirmModal}
         
         {/* Hidden Export Canvas */}
         <canvas ref={exportCanvasRef} className="hidden" />
@@ -2366,6 +2502,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           </div>
         </div>
       </div>
+
+      {resetConfirmModal}
 
       {/* Hidden Export Canvas */}
       <canvas ref={exportCanvasRef} className="hidden" />

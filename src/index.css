@@ -732,6 +732,21 @@ body {
   .thumbnail-card {
     border-radius: 12px;
     min-height: 80px;
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+
+  .dark .thumbnail-card {
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .layout-preview {
+    padding: 18px;
+  }
+
+  .layout-preview-grid {
+    gap: 3px;
+    transform: scale(0.96);
+    transform-origin: center;
   }
   
   /* Smaller delete button on mobile for better proportions */
@@ -878,6 +893,17 @@ body {
 .capture-layout {
   height: 100vh;
   overflow: hidden;
+}
+
+/* Layout selector preview sizing */
+.layout-preview {
+  padding: 17px;
+  box-sizing: border-box;
+}
+
+.layout-preview-grid {
+  display: grid;
+  gap: 4px;
 }
 
 .capture-stack {

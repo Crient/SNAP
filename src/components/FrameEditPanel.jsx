@@ -166,7 +166,7 @@ export default function FrameEditPanel({
         <button
           onClick={onExport}
           disabled={isExportDisabled}
-          className="w-full py-2.5 rounded-lg btn-primary text-white font-bold text-[15px]
+          className="w-full py-4 rounded-md btn-primary text-white font-bold text-[15px]
                      shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -175,6 +175,7 @@ export default function FrameEditPanel({
         <div className="mt-4 flex items-center justify-center gap-3"
         style={{marginTop: '5px'}}>
           <button
+            type="button"
             onClick={onReset}
             className="py-2 text-sm font-bold transition-all
                        text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
