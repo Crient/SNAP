@@ -16,6 +16,15 @@ function useCamera({ aspectRatio } = {}) {
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
     window.innerWidth < 768
   )
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const isIOS = typeof navigator !== 'undefined' && (
+    /iPad|iPhone|iPod/i.test(userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+  const isIPhone = typeof window !== 'undefined' && (
+    /iPhone|iPod/i.test(userAgent) ||
+    (isIOS && Math.min(window.screen?.width || 0, window.screen?.height || 0) < 768)
+  )
 
   const startCamera = useCallback(async () => {
     setIsLoading(true)
@@ -51,16 +60,18 @@ function useCamera({ aspectRatio } = {}) {
         audio: false,
       })
 
-      const useExactAspect = typeof aspectRatio === 'number' && isMobile
+      const useExactAspect = typeof aspectRatio === 'number' && isMobile && !isIOS
       const exactAspect = useExactAspect ? { exact: aspectRatio } : null
-      const idealAspect = aspectRatio ? { ideal: aspectRatio } : null
+      const idealAspect = typeof aspectRatio === 'number' ? { ideal: aspectRatio } : null
 
       // Try high → medium (with aspect) → fallback (no aspect)
-      const presets = [
-        makePreset(sizePresets[0][0], sizePresets[0][1], exactAspect),
-        makePreset(sizePresets[1][0], sizePresets[1][1], idealAspect),
-        makePreset(sizePresets[2][0], sizePresets[2][1], null),
-      ]
+      const aspectCandidates = exactAspect
+        ? [exactAspect, idealAspect, null]
+        : [idealAspect, idealAspect, null]
+
+      const presets = sizePresets.map((preset, index) => (
+        makePreset(preset[0], preset[1], aspectCandidates[index] || null)
+      ))
 
       let lastError = null
       for (const constraints of presets) {
@@ -142,6 +153,8 @@ function useCamera({ aspectRatio } = {}) {
     stopCamera,
     getCameras,
     isMobile,
+    isIOS,
+    isIPhone,
   }
 }
 

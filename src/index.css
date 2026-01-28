@@ -5,6 +5,7 @@
    ============================================ */
 
 :root {
+  --app-height: 100vh;
   /* Brand Colors - Same in both modes */
   --color-brand-primary: #B8001F;
   --color-brand-secondary: #FB708D;
@@ -45,6 +46,18 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+@supports (height: 100svh) {
+  :root {
+    --app-height: 100svh;
+  }
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
 }
 
 .dark {
@@ -248,11 +261,19 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  min-height: var(--app-height);
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.min-h-screen {
+  min-height: var(--app-height);
+}
+
+.h-screen {
+  height: var(--app-height);
 }
 
 /* ============================================
@@ -543,6 +564,12 @@ body {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.thumbnail-card img {
+  border-radius: inherit;
+  display: block;
 }
 
 .dark .thumbnail-card {
@@ -891,7 +918,7 @@ body {
 }
 
 .capture-layout {
-  height: 100vh;
+  height: var(--app-height);
   overflow: hidden;
 }
 

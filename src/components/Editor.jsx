@@ -309,12 +309,12 @@ const BackgroundThumbnail = memo(function BackgroundThumbnail({ num, type, isSel
       className={`thumbnail-card relative aspect-square rounded-xl overflow-hidden transition-all duration-200 ${selectedClass}`}
       style={{ '--tw-ring-offset-color': 'var(--panel-bg)' }}
     >
-      {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse" />}
+      {(!loaded || !isInView) && <div className="absolute inset-0 bg-[var(--color-surface)] animate-pulse rounded-xl" />}
       {isInView && (
         <img
           src={thumbSrc}
           alt=""
-          className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-cover transition-opacity duration-200 rounded-xl ${loaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
           onLoad={() => setLoaded(true)}
         />
