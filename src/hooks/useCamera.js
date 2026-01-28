@@ -73,6 +73,17 @@ function useCamera({ aspectRatio } = {}) {
           makePreset(640, 480, null, 'ideal'),
           makePreset(1280, 720, null, 'ideal'),
         ]
+      } else if (isIPhone && !isPortrait) {
+        presets = [
+          makePreset(1440, 1080, null, 'exact'),
+          makePreset(1440, 1080, null, 'ideal'),
+          makePreset(1280, 960, null, 'exact'),
+          makePreset(1280, 960, null, 'ideal'),
+          makePreset(640, 480, null, 'exact'),
+          makePreset(640, 480, null, 'ideal'),
+          makePreset(1920, 1080, null, 'ideal'),
+          makePreset(1280, 720, null, 'ideal'),
+        ]
       } else {
         // Try high → medium (with aspect) → fallback (no aspect)
         const aspectCandidates = exactAspect
