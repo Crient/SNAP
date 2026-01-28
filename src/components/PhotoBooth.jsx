@@ -91,15 +91,45 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream
-      
-      videoRef.current.onloadedmetadata = () => {
+
+      const updateDimensions = () => {
         setVideoDimensions({
           width: videoRef.current.videoWidth,
           height: videoRef.current.videoHeight,
         })
       }
+
+      videoRef.current.onloadedmetadata = updateDimensions
+      videoRef.current.onresize = updateDimensions
     }
   }, [stream])
+
+  useEffect(() => {
+    if (!stream || !isIPhone || targetAspectRatio >= 1) return
+    const track = stream.getVideoTracks?.()[0]
+    if (!track?.applyConstraints) return
+
+    const applyPortraitConstraints = async () => {
+      try {
+        await track.applyConstraints({
+          aspectRatio: { exact: targetAspectRatio },
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+          resizeMode: 'none',
+          advanced: [
+            { width: 1080, height: 1920 },
+            { width: 720, height: 1280 },
+            { width: 540, height: 960 },
+            { aspectRatio: targetAspectRatio },
+          ],
+        })
+      } catch {
+        // Ignore constraint failures; browser will fall back
+      }
+    }
+
+    applyPortraitConstraints()
+  }, [stream, isIPhone, targetAspectRatio])
 
   // Calculate crop region to match CSS object-fit: cover
   const calculateCropRegion = useCallback(() => {
@@ -158,6 +188,9 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     const ctx = canvas.getContext('2d')
 
     const shouldFitPortrait = isIPhone && targetAspectRatio < 1
+    const isAspectMatch = videoDimensions.width && videoDimensions.height
+      ? Math.abs((videoDimensions.width / videoDimensions.height) - targetAspectRatio) < 0.02
+      : false
 
     const captureScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.3), 2)
     const targetWidth = (orientation?.width || video.videoWidth || 1080) * captureScale
@@ -177,7 +210,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
 
-    if (shouldFitPortrait) {
+    if (shouldFitPortrait && !isAspectMatch) {
       drawImageContain(ctx, video, 0, 0, canvas.width, canvas.height)
     } else {
       const cropRegion = calculateCropRegion()
@@ -197,7 +230,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     // High-quality capture to preserve detail before compositing
     // PNG avoids JPEG softness; source is already cropped to target AR
     return canvas.toDataURL('image/png')
-  }, [calculateCropRegion, drawImageContain, isIPhone, orientation, targetAspectRatio])
+  }, [calculateCropRegion, drawImageContain, isIPhone, orientation, targetAspectRatio, videoDimensions])
 
   // Start capture sequence
   const startCapture = useCallback(() => {
@@ -313,6 +346,10 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   }
 
   const shouldFitPortrait = isIPhone && targetAspectRatio < 1
+  const isAspectMatch = videoDimensions.width && videoDimensions.height
+    ? Math.abs((videoDimensions.width / videoDimensions.height) - targetAspectRatio) < 0.02
+    : false
+  const useContainPreview = shouldFitPortrait && !isAspectMatch
 
   return (
     <div className="capture-layout min-h-screen flex flex-col items-center justify-center px-4 py-6 relative">
@@ -338,7 +375,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
               autoPlay
               playsInline
               muted
-              className={`w-full h-full ${shouldFitPortrait ? 'object-contain' : 'object-cover'} camera-mirror`}
+              className={`w-full h-full ${useContainPreview ? 'object-contain' : 'object-cover'} camera-mirror`}
             />
 
             {/* Ring Light - Exposure Boost Layer */}

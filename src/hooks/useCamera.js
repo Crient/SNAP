@@ -49,12 +49,13 @@ function useCamera({ aspectRatio } = {}) {
             [960, 540],
           ]
 
-      const makePreset = (width, height, aspectSetting, sizeConstraint = 'ideal') => ({
+      const makePreset = (width, height, aspectSetting, sizeConstraint = 'ideal', advancedOverrides = null) => ({
         video: {
           facingMode: 'user',
           width: { [sizeConstraint]: width },
           height: { [sizeConstraint]: height },
           ...(aspectSetting ? { aspectRatio: aspectSetting } : {}),
+          ...(advancedOverrides ? { advanced: advancedOverrides } : {}),
           ...(isIPhone ? { resizeMode: 'none' } : {}),
           frameRate: { ideal: 30, max: 30 },
         },
@@ -68,13 +69,18 @@ function useCamera({ aspectRatio } = {}) {
       let presets = []
 
       if (isIPhone && isPortrait) {
+        const portraitAdvanced = (width, height, aspect) => ([
+          { width, height },
+          { aspectRatio: aspect },
+        ])
+
         presets = [
-          makePreset(sizePresets[0][0], sizePresets[0][1], null, 'exact'),
-          makePreset(sizePresets[1][0], sizePresets[1][1], null, 'exact'),
-          makePreset(sizePresets[2][0], sizePresets[2][1], null, 'exact'),
-          makePreset(sizePresets[0][0], sizePresets[0][1], null, 'ideal'),
-          makePreset(sizePresets[1][0], sizePresets[1][1], null, 'ideal'),
-          makePreset(sizePresets[2][0], sizePresets[2][1], null, 'ideal'),
+          makePreset(sizePresets[0][0], sizePresets[0][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
+          makePreset(sizePresets[1][0], sizePresets[1][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
+          makePreset(sizePresets[2][0], sizePresets[2][1], { exact: aspectRatio }, 'exact', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
+          makePreset(sizePresets[0][0], sizePresets[0][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[0][0], sizePresets[0][1], aspectRatio)),
+          makePreset(sizePresets[1][0], sizePresets[1][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[1][0], sizePresets[1][1], aspectRatio)),
+          makePreset(sizePresets[2][0], sizePresets[2][1], { ideal: aspectRatio }, 'ideal', portraitAdvanced(sizePresets[2][0], sizePresets[2][1], aspectRatio)),
           {
             video: {
               facingMode: 'user',
