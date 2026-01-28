@@ -684,6 +684,10 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   const BASE_GRID_GAP = 6
   const BASE_PANEL_WIDTH = 290
   const BASE_GAP = 24 // gap between canvas and panel
+  const DESKTOP_MAX_SCALE = 1.15
+  const MOBILE_PANEL_WIDTH_RATIO = 0.82
+  const MOBILE_PANEL_MAX_WIDTH = 520
+  const MOBILE_CANVAS_MAX_WIDTH = 460
   
   const basePanelGridHeight = (panelVisibleRows * BASE_TILE_SIZE) + ((panelVisibleRows - 1) * BASE_GRID_GAP)
   const basePanelHeight = BASE_PANEL_HEADER + basePanelGridHeight + BASE_PANEL_FOOTER
@@ -719,7 +723,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     finalCanvasHeight = Math.round(finalCanvasWidth / canvasAspect)
     
     // Panel dimensions
-    finalPanelWidth = Math.min(480, Math.max(280, windowWidth * 0.75))
+    finalPanelWidth = Math.min(MOBILE_PANEL_MAX_WIDTH, Math.max(280, windowWidth * MOBILE_PANEL_WIDTH_RATIO))
     finalPanelHeight = windowHeight * 0.5
     finalScale = 1
   } else {
@@ -729,11 +733,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     const heightScale = availableHeight / basePanelHeight
     
     // Use the smaller scale, but cap between 0.6 and 1.0
-    finalScale = Math.min(1, Math.max(0.6, Math.min(widthScale, heightScale)))
+    finalScale = Math.min(DESKTOP_MAX_SCALE, Math.max(0.6, Math.min(widthScale, heightScale)))
     
     // Apply scale to all dimensions
-    finalPanelHeight = Math.round(basePanelHeight * finalScale)
-    finalPanelWidth = Math.round(BASE_PANEL_WIDTH * finalScale)
+    const scaledPanelHeight = basePanelHeight * finalScale
+    const scaledPanelWidth = BASE_PANEL_WIDTH * finalScale
+    const scaledGap = BASE_GAP * finalScale
+    const maxCanvasHeightByWidth = (availableWidth - scaledPanelWidth - scaledGap) / canvasAspect
+    const extraPanelRoom = isFrameEditMode
+      ? Math.max(0, Math.min(72, availableHeight - scaledPanelHeight, maxCanvasHeightByWidth - scaledPanelHeight))
+      : 0
+    
+    finalPanelHeight = Math.round(scaledPanelHeight + extraPanelRoom)
+    finalPanelWidth = Math.round(scaledPanelWidth)
     finalCanvasHeight = finalPanelHeight // ALWAYS match panel height
     finalCanvasWidth = Math.round(finalCanvasHeight * canvasAspect)
   }
@@ -1571,14 +1583,17 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
 
                 {isDragSource && isFrameDragActive && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white">
+                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white
+                    "
+                    style={{paddingTop:"5px", paddingBottom:"5px", paddingLeft:"10px", paddingRight:"10px"}}>
                       Dragging
                     </div>
                   </div>
                 )}
                 {isDragTarget && isFrameDragActive && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white">
+                    <div className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/75 text-white"
+                    style={{paddingTop:"5px", paddingBottom:"5px", paddingLeft:"10px", paddingRight:"10px"}}>
                       Drop to swap
                     </div>
                   </div>
@@ -2107,16 +2122,17 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           disabled={!loadedPhotos.length}
           className="w-full py-4 rounded-md btn-primary text-white font-bold text-[15px]
                      shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
+                     h-8
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Download
         </button>
          <div className="mt-4 flex items-center justify-center gap-3"
-        style={{marginTop: '5px'}}>
+        style={{marginTop: '10px'}}>
           <button
             type="button"
             onClick={handleConfirmReset}
-            className="py-2 text-sm font-bold transition-all
+            className="py-2 text-sm font-bold transition-all text-[13px]
                        text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             style={{ background: 'transparent', marginRight: '4px' }}
           >
@@ -2130,7 +2146,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             type="button"
             onClick={toggleFrameEditMode}
             aria-pressed={isFrameEditMode}
-            className="py-2 text-sm font-bold frame-edit-action"
+            className="py-2 text-sm font-bold frame-edit-action text-[13px]" 
             style={{ background: 'transparent', marginLeft: '4px' }}
           >
             Edit Frames
@@ -2219,7 +2235,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     const maxHeight = (windowHeight * availableCanvasVh) / 100
     
     // Start with width constraint
-    let w = Math.min(windowWidth - 32, 420)
+    let w = Math.min(windowWidth - 24, MOBILE_CANVAS_MAX_WIDTH)
     let h = Math.round(w / canvasAspect)
     
     // If too tall, constrain by available height
@@ -2260,7 +2276,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       >
         {/* Full screen canvas area */}
         <div 
-          className="absolute inset-0 flex flex-col items-center px-4 pb-4"
+          className="absolute inset-0 flex flex-col items-center px-3 pb-4"
           style={{ paddingTop: isVertical ? '10px' : '27px' }}
         >
           {/* Header */}
@@ -2422,8 +2438,8 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             ref={sheetRef}
             className={`sidebar-panel rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto ${isLoaded ? 'fade-up delay-200' : 'opacity-0'}`}
             style={{ 
-              width: '75%',
-              maxWidth: '480px',
+              width: '82%',
+              maxWidth: '520px',
               minWidth: '280px',
               height: `${currentSnapHeight}vh`,
               transition: isDragging ? 'none' : 'height 0.3s ease-out',

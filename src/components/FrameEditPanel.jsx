@@ -21,9 +21,12 @@ export default function FrameEditPanel({
   onDoneEditing,
 }) {
   return (
-    <>
+    <div className="flex flex-col h-full min-h-0">
       {/* === FRAME EDIT HEADER === */}
-      <div className="space-y-3" style={{ padding: isBottomSheet ? '14px 18px 10px 18px' : '14px 12px 10px 12px' }}>
+      <div
+        className="space-y-3 flex-shrink-0"
+        style={{ padding: isBottomSheet ? '14px 18px 10px 18px' : '14px 12px 10px 12px' }}
+      >
         <div className="flex items-center justify-between">
           <div className="text-[15px] font-bold uppercase tracking-wide text-[var(--color-text-primary)]">
             Frame Editing
@@ -40,7 +43,7 @@ export default function FrameEditPanel({
           </br>Tap a frame to select it.
         </p>
         <div className="text-[10px] font-semibold text-center uppercase tracking-wide text-[var(--color-text-muted)]"
-        style={{marginTop: "2px"}}>
+        style={{marginTop: "10px", marginBottom: "10px"}}>
           Actions
         </div>
         <div className="flex gap-2" style={{ marginBottom: '6px', marginTop: '4px' }}>
@@ -96,27 +99,28 @@ export default function FrameEditPanel({
       </div>
 
       {/* Thin divider between actions and frames */}
-      <div className="px-3">
+      <div className="px-3 flex-shrink-0">
         <div className="h-px w-full bg-[var(--card-border)] opacity-60" />
       </div>
 
       {/* === FRAME LIST === */}
       <div
-        className="flex-1 overflow-visible min-h-0 py-3"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 py-3"
         style={{
           paddingLeft: isBottomSheet ? '16px' : '10px',
           paddingRight: isBottomSheet ? '16px' : '10px',
         }}
       >
         <div className="mb-2 text-[10px] text-center font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"
-        style={{ marginBottom: '5px', marginTop: '5px' }}>
+        style={{marginTop: "10px", marginBottom: "10px"}}>
           Frames
         </div>
         <div
           className="grid gap-3 w-full"
           style={{
             gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            maxWidth: '100%',
+            maxWidth: '100%'
+            ,
           }}
         >
           {frameSlots.map((slot) => {
@@ -143,6 +147,10 @@ export default function FrameEditPanel({
                   '--tw-ring-offset-color': 'var(--panel-bg)',
                   paddingTop: '6px',
                   paddingBottom: '6px',
+                  marginTop: '-2px',
+                  marginBottom: '-2px',
+                  marginLeft: '-2px',
+                  marginRight: '-2px',  
                   background: isSelected ? 'rgba(184, 0, 31, 0.12)' : 'var(--toggle-bg)',
                 }}
               >
@@ -162,22 +170,26 @@ export default function FrameEditPanel({
 
 
       {/* === FIXED BOTTOM ACTIONS === */}
-      <div style={{ padding: isBottomSheet ? '8px 16px 16px 16px' : '10px 10px 14px 10px' }}>
+      <div
+        className="flex-shrink-0"
+        style={{ padding: isBottomSheet ? '8px 16px 16px 16px' : '10px 10px 14px 10px' }}
+      >
         <button
           onClick={onExport}
           disabled={isExportDisabled}
           className="w-full py-4 rounded-md btn-primary text-white font-bold text-[15px]
                      shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
+                     h-8
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Download
         </button>
         <div className="mt-4 flex items-center justify-center gap-3"
-        style={{marginTop: '5px'}}>
+        style={{marginTop: '10px'}}>
           <button
             type="button"
             onClick={onReset}
-            className="py-2 text-sm font-bold transition-all
+            className="py-2 text-sm font-bold transition-all text-[13px]
                        text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             style={{ background: 'transparent', marginRight: '4px' }}
           >
@@ -190,13 +202,13 @@ export default function FrameEditPanel({
           <button
             type="button"
             onClick={onDoneEditing}
-            className="py-2 text-sm font-bold frame-edit-action"
+            className="py-2 text-sm font-bold frame-edit-action text-[13px]"
             style={{ background: 'transparent', marginLeft: '4px' }}
           >
             Done Editing
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
