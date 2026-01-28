@@ -34,7 +34,6 @@ const RING_LIGHT_TONES = {
 
 function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   const videoRef = useRef(null)
-  const bgVideoRef = useRef(null)
   const canvasRef = useRef(null)
 
   const targetAspectRatio = (layout?.cameraAspectByOrientation && orientation?.id)
@@ -92,10 +91,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream
-
-      if (bgVideoRef.current) {
-        bgVideoRef.current.srcObject = stream
-      }
       
       videoRef.current.onloadedmetadata = () => {
         setVideoDimensions({
@@ -131,24 +126,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
 
     return { srcX, srcY, srcWidth, srcHeight }
   }, [videoDimensions, targetAspectRatio])
-
-  const drawImageCover = useCallback((ctx, source, x, y, width, height) => {
-    const sourceWidth = source.videoWidth || source.width || 0
-    const sourceHeight = source.videoHeight || source.height || 0
-    if (!sourceWidth || !sourceHeight) return
-    const imgRatio = sourceWidth / sourceHeight
-    const targetRatio = width / height
-
-    let srcX = 0, srcY = 0, srcW = sourceWidth, srcH = sourceHeight
-    if (imgRatio > targetRatio) {
-      srcW = sourceHeight * targetRatio
-      srcX = (sourceWidth - srcW) / 2
-    } else {
-      srcH = sourceWidth / targetRatio
-      srcY = (sourceHeight - srcH) / 2
-    }
-    ctx.drawImage(source, srcX, srcY, srcW, srcH, x, y, width, height)
-  }, [])
 
   const drawImageContain = useCallback((ctx, source, x, y, width, height) => {
     const sourceWidth = source.videoWidth || source.width || 0
@@ -201,10 +178,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     ctx.scale(-1, 1)
 
     if (shouldFitPortrait) {
-      ctx.save()
-      ctx.filter = 'blur(16px)'
-      drawImageCover(ctx, video, 0, 0, canvas.width, canvas.height)
-      ctx.restore()
       drawImageContain(ctx, video, 0, 0, canvas.width, canvas.height)
     } else {
       const cropRegion = calculateCropRegion()
@@ -224,7 +197,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     // High-quality capture to preserve detail before compositing
     // PNG avoids JPEG softness; source is already cropped to target AR
     return canvas.toDataURL('image/png')
-  }, [calculateCropRegion, drawImageContain, drawImageCover, isIPhone, orientation, targetAspectRatio])
+  }, [calculateCropRegion, drawImageContain, isIPhone, orientation, targetAspectRatio])
 
   // Start capture sequence
   const startCapture = useCallback(() => {
@@ -360,15 +333,6 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
             className="relative rounded-2xl overflow-hidden shadow-lg"
             style={getPreviewContainerStyle()}
           >
-            {shouldFitPortrait && (
-              <video
-                ref={bgVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute inset-0 w-full h-full object-cover scale-[1.1] blur-[14px] opacity-80 camera-mirror"
-              />
-            )}
             <video
               ref={videoRef}
               autoPlay

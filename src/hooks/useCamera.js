@@ -49,12 +49,13 @@ function useCamera({ aspectRatio } = {}) {
             [960, 540],
           ]
 
-      const makePreset = (width, height, aspectSetting) => ({
+      const makePreset = (width, height, aspectSetting, sizeConstraint = 'ideal') => ({
         video: {
           facingMode: 'user',
-          width: { ideal: width },
-          height: { ideal: height },
+          width: { [sizeConstraint]: width },
+          height: { [sizeConstraint]: height },
           ...(aspectSetting ? { aspectRatio: aspectSetting } : {}),
+          ...(isIPhone ? { resizeMode: 'none' } : {}),
           frameRate: { ideal: 30, max: 30 },
         },
         audio: false,
@@ -64,14 +65,35 @@ function useCamera({ aspectRatio } = {}) {
       const exactAspect = useExactAspect ? { exact: aspectRatio } : null
       const idealAspect = typeof aspectRatio === 'number' ? { ideal: aspectRatio } : null
 
-      // Try high → medium (with aspect) → fallback (no aspect)
-      const aspectCandidates = exactAspect
-        ? [exactAspect, idealAspect, null]
-        : [idealAspect, idealAspect, null]
+      let presets = []
 
-      const presets = sizePresets.map((preset, index) => (
-        makePreset(preset[0], preset[1], aspectCandidates[index] || null)
-      ))
+      if (isIPhone && isPortrait) {
+        presets = [
+          makePreset(sizePresets[0][0], sizePresets[0][1], null, 'exact'),
+          makePreset(sizePresets[1][0], sizePresets[1][1], null, 'exact'),
+          makePreset(sizePresets[2][0], sizePresets[2][1], null, 'exact'),
+          makePreset(sizePresets[0][0], sizePresets[0][1], null, 'ideal'),
+          makePreset(sizePresets[1][0], sizePresets[1][1], null, 'ideal'),
+          makePreset(sizePresets[2][0], sizePresets[2][1], null, 'ideal'),
+          {
+            video: {
+              facingMode: 'user',
+              ...(isIPhone ? { resizeMode: 'none' } : {}),
+              frameRate: { ideal: 30, max: 30 },
+            },
+            audio: false,
+          },
+        ]
+      } else {
+        // Try high → medium (with aspect) → fallback (no aspect)
+        const aspectCandidates = exactAspect
+          ? [exactAspect, idealAspect, null]
+          : [idealAspect, idealAspect, null]
+
+        presets = sizePresets.map((preset, index) => (
+          makePreset(preset[0], preset[1], aspectCandidates[index] || null)
+        ))
+      }
 
       let lastError = null
       for (const constraints of presets) {
