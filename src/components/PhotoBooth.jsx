@@ -34,6 +34,7 @@ const RING_LIGHT_TONES = {
 
 function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   const videoRef = useRef(null)
+  const bgVideoRef = useRef(null)
   const canvasRef = useRef(null)
 
   const targetAspectRatio = (layout?.cameraAspectByOrientation && orientation?.id)
@@ -41,7 +42,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     : (orientation?.aspectRatio || (9 / 16))
   const isCameraHorizontal = targetAspectRatio > 1
   
-  const { stream, error, isLoading, startCamera, stopCamera } = useCamera({ aspectRatio: targetAspectRatio })
+  const { stream, error, isLoading, startCamera, stopCamera, isIPhone } = useCamera({ aspectRatio: targetAspectRatio })
   
   const [captureState, setCaptureState] = useState(CAPTURE_STATES.READY)
   const [countdown, setCountdown] = useState(3)
@@ -91,6 +92,10 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream
+
+      if (bgVideoRef.current) {
+        bgVideoRef.current.srcObject = stream
+      }
       
       videoRef.current.onloadedmetadata = () => {
         setVideoDimensions({
@@ -127,6 +132,46 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     return { srcX, srcY, srcWidth, srcHeight }
   }, [videoDimensions, targetAspectRatio])
 
+  const drawImageCover = useCallback((ctx, source, x, y, width, height) => {
+    const sourceWidth = source.videoWidth || source.width || 0
+    const sourceHeight = source.videoHeight || source.height || 0
+    if (!sourceWidth || !sourceHeight) return
+    const imgRatio = sourceWidth / sourceHeight
+    const targetRatio = width / height
+
+    let srcX = 0, srcY = 0, srcW = sourceWidth, srcH = sourceHeight
+    if (imgRatio > targetRatio) {
+      srcW = sourceHeight * targetRatio
+      srcX = (sourceWidth - srcW) / 2
+    } else {
+      srcH = sourceWidth / targetRatio
+      srcY = (sourceHeight - srcH) / 2
+    }
+    ctx.drawImage(source, srcX, srcY, srcW, srcH, x, y, width, height)
+  }, [])
+
+  const drawImageContain = useCallback((ctx, source, x, y, width, height) => {
+    const sourceWidth = source.videoWidth || source.width || 0
+    const sourceHeight = source.videoHeight || source.height || 0
+    if (!sourceWidth || !sourceHeight) return
+    const imgRatio = sourceWidth / sourceHeight
+    const targetRatio = width / height
+
+    let drawW = width
+    let drawH = height
+    if (imgRatio > targetRatio) {
+      drawW = width
+      drawH = width / imgRatio
+    } else {
+      drawH = height
+      drawW = height * imgRatio
+    }
+
+    const dx = x + (width - drawW) / 2
+    const dy = y + (height - drawH) / 2
+    ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight, dx, dy, drawW, drawH)
+  }, [])
+
   // Capture a single photo with proper cropping
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return null
@@ -135,10 +180,7 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
-    const cropRegion = calculateCropRegion()
-    if (!cropRegion) return null
-
-    const { srcX, srcY, srcWidth, srcHeight } = cropRegion
+    const shouldFitPortrait = isIPhone && targetAspectRatio < 1
 
     const captureScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.3), 2)
     const targetWidth = (orientation?.width || video.videoWidth || 1080) * captureScale
@@ -157,17 +199,32 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     ctx.save()
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
-    ctx.drawImage(
-      video,
-      srcX, srcY, srcWidth, srcHeight,
-      0, 0, canvas.width, canvas.height
-    )
+
+    if (shouldFitPortrait) {
+      ctx.save()
+      ctx.filter = 'blur(16px)'
+      drawImageCover(ctx, video, 0, 0, canvas.width, canvas.height)
+      ctx.restore()
+      drawImageContain(ctx, video, 0, 0, canvas.width, canvas.height)
+    } else {
+      const cropRegion = calculateCropRegion()
+      if (!cropRegion) {
+        ctx.restore()
+        return null
+      }
+      const { srcX, srcY, srcWidth, srcHeight } = cropRegion
+      ctx.drawImage(
+        video,
+        srcX, srcY, srcWidth, srcHeight,
+        0, 0, canvas.width, canvas.height
+      )
+    }
     ctx.restore()
 
     // High-quality capture to preserve detail before compositing
     // PNG avoids JPEG softness; source is already cropped to target AR
     return canvas.toDataURL('image/png')
-  }, [calculateCropRegion, orientation, targetAspectRatio])
+  }, [calculateCropRegion, drawImageContain, drawImageCover, isIPhone, orientation, targetAspectRatio])
 
   // Start capture sequence
   const startCapture = useCallback(() => {
@@ -282,6 +339,8 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
     }
   }
 
+  const shouldFitPortrait = isIPhone && targetAspectRatio < 1
+
   return (
     <div className="capture-layout min-h-screen flex flex-col items-center justify-center px-4 py-6 relative">
       <div className="capture-stack flex flex-col items-center justify-center w-full">
@@ -301,12 +360,21 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
             className="relative rounded-2xl overflow-hidden shadow-lg"
             style={getPreviewContainerStyle()}
           >
+            {shouldFitPortrait && (
+              <video
+                ref={bgVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 w-full h-full object-cover scale-[1.1] blur-[14px] opacity-80 camera-mirror"
+              />
+            )}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover camera-mirror"
+              className={`w-full h-full ${shouldFitPortrait ? 'object-contain' : 'object-cover'} camera-mirror`}
             />
 
             {/* Ring Light - Exposure Boost Layer */}
