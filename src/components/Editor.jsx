@@ -385,6 +385,24 @@ const ElementThumbnail = memo(function ElementThumbnail({ num, onAdd }) {
 // - will-change + touch-action for smooth dragging
 // ============================================
 const ELEMENT_BASE_SIZE_PX = 80
+const EXPORT_SIZE_PRESETS = {
+  hd: {
+    id: 'hd',
+    label: 'HD',
+    sizes: {
+      horizontal: { width: 1920, height: 1080 },
+      vertical: { width: 1080, height: 1920 },
+    },
+  },
+  qhd: {
+    id: 'qhd',
+    label: 'QHD',
+    sizes: {
+      horizontal: { width: 2560, height: 1440 },
+      vertical: { width: 1440, height: 2560 },
+    },
+  },
+}
 const ELEMENT_DUPLICATE_OFFSET = 2.5
 const ROTATE_HANDLE_OFFSET_PX = 36
 const MIN_ELEMENT_SCALE = 0.3
@@ -553,8 +571,22 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     setShowResetConfirm(false)
     onReset()
   }, [onReset])
+
+  const handleOpenExportModal = useCallback((event) => {
+    if (event?.preventDefault) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    setShowExportSizeModal(true)
+  }, [])
+
+  const handleCloseExportModal = useCallback(() => {
+    setShowExportSizeModal(false)
+  }, [])
   const [bgTransitioning, setBgTransitioning] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportSizePreset, setExportSizePreset] = useState('qhd')
+  const [showExportSizeModal, setShowExportSizeModal] = useState(false)
   
   // Elements state
   const [elementCategory, setElementCategory] = useState('all')
@@ -616,7 +648,14 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
   // DERIVED VALUES
   // ----------------------------------------
   const isVertical = orientation?.id === 'vertical'
+  const isHorizontal = orientation?.id === 'horizontal' || (orientation?.width > orientation?.height)
   const canvasAspect = orientation ? (orientation.width / orientation.height) : (16/9)
+  const activeExportPreset = EXPORT_SIZE_PRESETS[exportSizePreset] || EXPORT_SIZE_PRESETS.qhd
+  const exportPresetSizes = isHorizontal ? activeExportPreset.sizes.horizontal : activeExportPreset.sizes.vertical
+  const exportSizeOptions = [
+    { id: 'hd', label: isHorizontal ? 'HD • 1920×1080' : 'HD • 1080×1920' },
+    { id: 'qhd', label: isHorizontal ? 'QHD • 2560×1440' : 'QHD • 1440×2560' },
+  ]
 
   const { paddingRatio, gapRatio } = getSpacingRatios(orientation)
 
@@ -783,6 +822,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     </div>
   ) : null
 
+
   // ----------------------------------------
   // EFFECTS
   // ----------------------------------------
@@ -812,6 +852,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showResetConfirm])
+
+  useEffect(() => {
+    if (!showExportSizeModal) return
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowExportSizeModal(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showExportSizeModal])
 
   // Keep a ref to the latest frame state for undo/redo helpers.
   useEffect(() => {
@@ -1562,16 +1615,9 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
 
-      const deviceScale = Math.min(Math.max((window.devicePixelRatio || 1), 1.5), 2)
-      const baseWidth = orientation?.width || 1080
-      const baseHeight = orientation?.height || 1920
-      const minPhotoScale = loadedPhotos.length
-        ? Math.min(...loadedPhotos.filter(Boolean).map(img => img.width / baseWidth))
-        : 1
-      const exportScale = Math.max(1, Math.min(deviceScale, minPhotoScale || 1))
-
-      const canvasWidth = Math.round(baseWidth * exportScale)
-      const canvasHeight = Math.round(baseHeight * exportScale)
+      const isHorizontal = orientation?.id === 'horizontal' || (orientation?.width > orientation?.height)
+      const canvasWidth = exportPresetSizes.width
+      const canvasHeight = exportPresetSizes.height
 
       canvas.width = canvasWidth
       canvas.height = canvasHeight
@@ -1741,12 +1787,97 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     }
   }
 
+  const exportSizeModal = showExportSizeModal ? (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center px-5">
+      <div
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        onClick={handleCloseExportModal}
+      />
+      <div className="relative z-10 w-80">
+        <div
+          className="reminder-modal relative rounded-3xl px-2 py-9 shadow-2xl border border-[var(--color-border)] overflow-hidden text-center"
+          style={{ width: '100%' }}
+        >
+          <p
+            className="text-[26px] font-extrabold uppercase"
+            style={{ color: 'var(--color-brand-primary)', paddingTop: '10px', }}
+          >
+            Export Size
+          </p>
+          <hr
+            aria-hidden="true"
+            className="mx-auto border-0"
+            style={{
+              width: '70%',
+              height: '1.5px',
+              margin: '8px auto 12px',
+              background:
+                'linear-gradient(90deg, transparent, var(--divider-line, rgba(0,0,0,0.35)), transparent)',
+              opacity: 1,
+            }}
+          />
+          <p
+            className="mt-2 text-sm font-semibold text-[var(--color-text-secondary)] leading-6"
+            style={{ marginBottom: '15px', marginTop: '10px' }}
+          >
+            Choose the resolution for your download.
+          </p>
+          <div className="flex gap-2 px-3"
+           style={{ marginBottom: '8px', marginTop: '2px', paddingLeft: '25px', paddingRight: '25px',paddingTop  : '-5px', paddingBottom: '-5px' }}>
+            {exportSizeOptions.map((option) => {
+              const isActive = exportSizePreset === option.id
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setExportSizePreset(option.id)}
+                  className={`flex-1 h-8 rounded-2xl text-[10px] font-semibold transition-all shadow-sm ${
+                    isActive
+                      ? 'bg-[#B8001F]/12 text-[#B8001F]'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                  }`}
+                  style={isActive ? {} : { background: 'var(--toggle-bg)', marginBottom: '-10px' }}
+
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+          <div
+            className="mt-6 flex gap-2"
+            style={{ marginBottom: '15px', paddingLeft: '15px', paddingRight: '15px', marginTop: '10px' }}
+          >
+            <button
+              type="button"
+              onClick={handleCloseExportModal}
+              className="flex-1 h-10 rounded-2xl glass text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                handleCloseExportModal()
+                await handleExport()
+              }}
+              className="flex-1 h-10 rounded-2xl btn-primary text-white font-bold text-sm"
+            >
+              Download
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   // ----------------------------------------
   // RENDER
   // ----------------------------------------
   
   // Panel content - shared between side panel and bottom sheet
   const renderPanelContent = (isBottomSheet = false) => {
+
     if (isFrameEditMode) {
       return (
         <FrameEditPanel
@@ -1765,7 +1896,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
           onRedo={redoFrameAction}
           onToggleSelectedVisibility={toggleSelectedFrameVisibility}
           onShowAll={showAllFrames}
-          onExport={handleExport}
+          onExport={handleOpenExportModal}
           onReset={handleConfirmReset}
           onDoneEditing={toggleFrameEditMode}
         />
@@ -1972,7 +2103,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       {/* === FIXED BOTTOM ACTIONS === */}
       <div style={{ padding: isBottomSheet ? '8px 16px 16px 16px' : '10px 10px 14px 10px' }}>
         <button
-          onClick={handleExport}
+          onClick={handleOpenExportModal}
           disabled={!loadedPhotos.length}
           className="w-full py-4 rounded-md btn-primary text-white font-bold text-[15px]
                      shadow-md hover:shadow-lg hover:shadow-[#B8001F]/15 transition-all
@@ -2313,6 +2444,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         </div>
 
         {resetConfirmModal}
+        {exportSizeModal}
         
         {/* Hidden Export Canvas */}
         <canvas ref={exportCanvasRef} className="hidden" />
@@ -2504,6 +2636,7 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       </div>
 
       {resetConfirmModal}
+      {exportSizeModal}
 
       {/* Hidden Export Canvas */}
       <canvas ref={exportCanvasRef} className="hidden" />

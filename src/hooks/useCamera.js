@@ -10,6 +10,7 @@ function useCamera({ aspectRatio } = {}) {
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const streamRef = useRef(null)
+  const lastStreamSettingsRef = useRef(null)
   
   // Detect if mobile
   const isMobile = typeof window !== 'undefined' && (
@@ -61,10 +62,23 @@ function useCamera({ aspectRatio } = {}) {
       const exactAspect = useExactAspect ? { exact: aspectRatio } : null
       const idealAspect = typeof aspectRatio === 'number' ? { ideal: aspectRatio } : null
 
+      const highResSizes = [
+        [2560, 1440],
+        [1920, 1080],
+        [1440, 1080],
+        [1280, 720],
+      ]
+      const highResAspect = isIPhone ? null : idealAspect
+      const highResPresets = highResSizes.map(([width, height]) => (
+        makePreset(width, height, highResAspect)
+      ))
+
       let presets = []
 
+      presets = presets.concat(highResPresets)
+
       if (isIPhone && isPortrait) {
-        presets = [
+        presets = presets.concat([
           makePreset(1440, 1080, null, 'exact'),
           makePreset(1440, 1080, null, 'ideal'),
           makePreset(1280, 960, null, 'exact'),
@@ -72,9 +86,9 @@ function useCamera({ aspectRatio } = {}) {
           makePreset(640, 480, null, 'exact'),
           makePreset(640, 480, null, 'ideal'),
           makePreset(1280, 720, null, 'ideal'),
-        ]
+        ])
       } else if (isIPhone && !isPortrait) {
-        presets = [
+        presets = presets.concat([
           makePreset(1440, 1080, null, 'exact'),
           makePreset(1440, 1080, null, 'ideal'),
           makePreset(1280, 960, null, 'exact'),
@@ -83,16 +97,16 @@ function useCamera({ aspectRatio } = {}) {
           makePreset(640, 480, null, 'ideal'),
           makePreset(1920, 1080, null, 'ideal'),
           makePreset(1280, 720, null, 'ideal'),
-        ]
+        ])
       } else {
         // Try high → medium (with aspect) → fallback (no aspect)
         const aspectCandidates = exactAspect
           ? [exactAspect, idealAspect, null]
           : [idealAspect, idealAspect, null]
 
-        presets = sizePresets.map((preset, index) => (
+        presets = presets.concat(sizePresets.map((preset, index) => (
           makePreset(preset[0], preset[1], aspectCandidates[index] || null)
-        ))
+        )))
       }
 
       let lastError = null
@@ -101,12 +115,16 @@ function useCamera({ aspectRatio } = {}) {
           const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
           if (import.meta.env?.DEV && isIPhone && isPortrait) {
             const settings = mediaStream.getVideoTracks?.()[0]?.getSettings?.() || {}
+            lastStreamSettingsRef.current = settings
             // eslint-disable-next-line no-console
             console.log('[camera] iPhone portrait stream settings', {
               width: settings.width,
               height: settings.height,
               aspectRatio: settings.aspectRatio,
             })
+          } else {
+            const settings = mediaStream.getVideoTracks?.()[0]?.getSettings?.() || {}
+            lastStreamSettingsRef.current = settings
           }
           streamRef.current = mediaStream
           setStream(mediaStream)
