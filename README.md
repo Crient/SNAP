@@ -1,21 +1,6 @@
-# SNAP
+# SNAP 
 
 SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets users decorate them with backgrounds and stickers, and exports a finished strip — all locally, with no backend required.
-
----
-<p align="center">
-  <img src="./public/assets/preview-landing.png" width="32%" />
-  <img src="./public/assets/preview-flow.png" width="32%" />
-  <img src="./public/assets/preview-editor.png" width="32%" />
-</p>
-
----
-
-## Why I Built This
-
-I've always loved photobooths. Wanted a digital version with elements and backgrounds that I actually vibe with, so I made my own :)
-
----
 
 ## Features
 
@@ -42,10 +27,10 @@ I've always loved photobooths. Wanted a digital version with elements and backgr
 ---
 
 ## User Flow
-```
-Landing → Layout → Orientation → Capture → Preview → Edit → Export
-```
 
+Landing → Layout → Orientation → Capture → Preview → Edit → Export
+
+---
 
 ## Tech Stack
 
@@ -60,21 +45,16 @@ Landing → Layout → Orientation → Capture → Preview → Edit → Export
 ---
 
 ## Getting Started
+
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/snap.git
-cd snap
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-## Live Demo
-**https://snapdigital.vercel.app**
+---
 
+## Live Demo
+https://snapdigital.vercel.app
 
 ---
 
@@ -109,10 +89,13 @@ public/assets/
 
 scripts/
 └── compress-images.js
+
+vite.config.js
 ```
 
-## Architecture Notes
+---
 
+## Architecture Notes
 - Central stage flow manages transitions between capture, preview, and editing
 - Layout and orientation behavior defined through configuration helpers
 - Camera lifecycle and permissions handled via a dedicated hook
@@ -122,24 +105,19 @@ scripts/
 ---
 
 ## Privacy
-
-All processing stays entirely in the browser. Camera streams, captures, previews, and exports never leave the device.
+All processing stays entirely in the browser.
+Camera streams, captures, previews, and exports never leave the device.
 
 Local persistence is limited to:
 - Theme preference (localStorage)
 - One-time camera reminder flag (sessionStorage)
 
-**No analytics, tracking, or network requests are performed.**
+No analytics, tracking, or network requests are performed.
 
-
+---
 
 ## Future Work
-
 - Text tool with font and color controls
 - Additional export presets and quality options
 - Session persistence for re-editing
 - Multi-camera and input source selection
-
----
-
-MIT © 2026 Gechleng Lim
