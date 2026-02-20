@@ -3,7 +3,7 @@ import { useState, useEffect, createContext, useContext } from 'react'
 const ThemeContext = createContext(null)
 
 export function ThemeProvider({ children }) {
-  // Default to dark mode
+  // Default to light mode
   const [isDark, setIsDark] = useState(() => {
     // Check localStorage first
     if (typeof window !== 'undefined') {
@@ -12,8 +12,8 @@ export function ThemeProvider({ children }) {
         return saved === 'dark'
       }
     }
-    // Default to dark
-    return true
+    // Default to light
+    return false
   })
 
   // Apply theme class to document
