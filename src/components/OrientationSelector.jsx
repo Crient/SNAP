@@ -126,7 +126,7 @@ function OrientationSelector({ orientations, selectedLayout, onSelect, onBack })
         className={`flex items-center gap-1.5 md:gap-2 px-[0.9rem] md:px-[1.125rem] py-[0.45rem] md:py-[0.56rem] rounded-full
                     text-[var(--color-text-secondary)] font-semibold text-[13px] md:text-[14px]
                     hover:text-[var(--color-brand-primary)]
-                    hover:bg-[var(--color-brand-primary)]/10
+                    hover:
                     transition-all duration-200
                     ${isLoaded ? 'fade-up delay-400' : 'opacity-0'}`}
         style={{ marginTop: '20px' }}

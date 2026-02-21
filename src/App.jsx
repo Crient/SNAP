@@ -36,6 +36,7 @@ function App() {
   const [selectedLayout, setSelectedLayout] = useState(null)
   const [selectedOrientation, setSelectedOrientation] = useState(null)
   const [capturedPhotos, setCapturedPhotos] = useState([])
+  const showFlowGlassLayer = stage !== STAGES.LANDING
 
   const handleStart = () => {
     setStage(STAGES.LAYOUT)
@@ -109,7 +110,13 @@ function App() {
   return (
     <div className="min-h-screen relative">
       {/* Animated Background */}
-      <AnimatedBackground />
+      <AnimatedBackground interactive={stage === STAGES.LANDING} />
+
+      {/* Glass backdrop for post-landing flow screens */}
+      <div
+        aria-hidden="true"
+        className={`flow-glass-layer ${showFlowGlassLayer ? 'is-visible' : ''}`}
+      />
 
       {/* Theme Toggle */}
       <ThemeToggle />

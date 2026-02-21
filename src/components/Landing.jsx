@@ -18,9 +18,14 @@ function Landing({ onStart }) {
         <div className="relative inline-block mb-0">
           <div className="w-[11rem] h-[9.5rem] md:w-[16rem] md:h-[13.9rem] lg:w-[18.5rem] lg:h-[16rem] overflow-hidden float">
             <img
-              src="/assets/LandingPageLogo.png"
+              src="/assets/LandingPageLogo.optimized.png"
               alt="SNAP logo"
               className="block w-full h-full object-cover object-[50%_14%] [mask-image:linear-gradient(to_bottom,black_0%,black_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_90%,transparent_100%)]"
+              width="1100"
+              height="1100"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               draggable={false}
             />
           </div>
