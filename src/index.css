@@ -40,6 +40,12 @@
   --flow-glass-edge-shadow: rgba(132, 162, 210, 0.2);
   --flow-glass-blur: 23px;
   --flow-glass-saturate: 130%;
+  --wave-glass-fill-strong: rgba(255, 255, 255, 0.36);
+  --wave-glass-fill-soft: rgba(244, 248, 255, 0.24);
+  --wave-glass-border: rgba(255, 255, 255, 0.42);
+  --wave-glass-shadow: rgba(151, 177, 218, 0.2);
+  --wave-glass-blur: 18px;
+  --wave-glass-saturate: 128%;
   
   /* Sidebar Panel - Light Mode */
   --panel-bg: rgba(255, 255, 255, 0.85);
@@ -102,6 +108,12 @@
   --flow-glass-edge-shadow: rgba(4, 9, 16, 0.34);
   --flow-glass-blur: 10px;
   --flow-glass-saturate: 112%;
+  --wave-glass-fill-strong: rgba(8, 13, 22, 0.46);
+  --wave-glass-fill-soft: rgba(13, 19, 31, 0.34);
+  --wave-glass-border: rgba(173, 199, 238, 0.14);
+  --wave-glass-shadow: rgba(0, 0, 0, 0.36);
+  --wave-glass-blur: 14px;
+  --wave-glass-saturate: 112%;
   
   /* Sidebar Panel - Dark Mode */
   --panel-bg: rgba(20, 24, 38, 0.9);
@@ -301,6 +313,75 @@ body {
 }
 
 /* Shared backdrop layer for all post-landing stages */
+.wave-glass-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.50;
+  background:
+    linear-gradient(
+      160deg,
+      var(--wave-glass-fill-strong) 0%,
+      var(--wave-glass-fill-soft) 100%
+    ),
+    radial-gradient(
+      110% 85% at 8% 0%,
+      rgba(255, 255, 255, 0.18) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 80% at 100% 100%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 70%
+    );
+  border: 1px solid var(--wave-glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 16px 44px var(--wave-glass-shadow);
+  -webkit-backdrop-filter: blur(var(--wave-glass-blur)) saturate(var(--wave-glass-saturate));
+  backdrop-filter: blur(var(--wave-glass-blur)) saturate(var(--wave-glass-saturate));
+  transition: opacity 0.42s ease, background 0.42s ease, border-color 0.42s ease, box-shadow 0.42s ease;
+}
+
+.dark .wave-glass-layer {
+  opacity: 0.8;
+  background:
+    linear-gradient(
+      160deg,
+      var(--wave-glass-fill-strong) 0%,
+      var(--wave-glass-fill-soft) 100%
+    ),
+    radial-gradient(
+      110% 85% at 8% 0%,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 80% at 100% 100%,
+      rgba(99, 125, 172, 0.12) 0%,
+      transparent 72%
+    );
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wave-glass-layer {
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.48) 0%,
+      rgba(241, 246, 255, 0.36) 100%
+    );
+  }
+
+  .dark .wave-glass-layer {
+    background: linear-gradient(
+      160deg,
+      rgba(10, 16, 29, 0.58) 0%,
+      rgba(17, 24, 37, 0.44) 100%
+    );
+  }
+}
+
 .flow-glass-layer {
   position: fixed;
   inset: 0;

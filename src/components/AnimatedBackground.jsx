@@ -31,8 +31,8 @@ const GRID_DECOR_SOURCES = [
   '/assets/Dots-Grid/Shape-Group-2.png',
 ]
 
-const THEME_FADE_MS = 220
-const THEME_FADE_TRANSITION = `opacity ${THEME_FADE_MS}ms ease`
+const THEME_FADE_MS = 420
+const THEME_FADE_TRANSITION = `opacity ${THEME_FADE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), filter ${THEME_FADE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
 const PRELOAD_IMAGE_SOURCES = [
   ...BLOB_SOURCES.dark,
   ...BLOB_SOURCES.light,
@@ -74,6 +74,7 @@ const BLOB_LAYOUT = [
     flipX: true,
     radius: 390,
     strength: 17,
+    darkOpacity: 0.98,
   },
   {
     key: 'blob-6-bottom-left',
@@ -125,6 +126,7 @@ const BLOB_LAYOUT = [
     z: 4,
     radius: 360,
     strength: 16,
+    darkOpacity: 0.98,
   },
   {
     key: 'blob-5-bottom-right',
@@ -143,6 +145,7 @@ const BLOB_LAYOUT = [
     z: 2,
     radius: 420,
     strength: 21,
+    darkOpacity: 1,
   },
   {
     key: 'blob-3-left-mid',
@@ -286,22 +289,82 @@ const BLOB_LIGHT_GLOW = {
   6: { primary: 'rgba(133, 208, 255, 0.52)', secondary: 'rgba(255, 182, 223, 0.34)' }, // baby blue / baby pink
 }
 
-const POINTER_FOLLOW_EASING = 0.14
-const FORCE_SCALE = 0.72
-const SPRING_STIFFNESS = 0.095
-const SPRING_DAMPING = 0.82
+const INTERACTION_PROFILES = {
+  water: {
+    pointerFollowEasing: 0.085,
+    forceScale: 0.68,
+    falloffPower: 2.35,
+    positionLerp: 0.12,
+    springDamping: 0.9,
+    swirlScale: 0.12,
+    wakeScale: 0.08,
+    velocityRetention: 0.86,
+    idleVelocityDecay: 0.9,
+    idleAmplitude: 0.028,
+    idleWaveSpeed: 0.0006,
+    maxOffset: 26,
+    minDistanceForForce: 16,
+    innerDeadZone: 8,
+    blobWeight: 1.15,
+    gridWeight: 0.7,
+  },
+  bubbly: {
+    pointerFollowEasing: 0.14,
+    forceScale: 0.72,
+    falloffPower: 2,
+    positionLerp: 0.14,
+    springDamping: 0.82,
+    swirlScale: 0,
+    wakeScale: 0,
+    velocityRetention: 0.7,
+    idleVelocityDecay: 0.8,
+    idleAmplitude: 0,
+    idleWaveSpeed: 0.0012,
+    maxOffset: 34,
+    minDistanceForForce: 12,
+    innerDeadZone: 0,
+    blobWeight: 1,
+    gridWeight: 1,
+  },
+}
+const ACTIVE_INTERACTION_PROFILE = 'water'
+const INTERACTION = INTERACTION_PROFILES[ACTIVE_INTERACTION_PROFILE]
 const VIEWPORT_TIER = {
   smallMaxWidth: 1024,
   wideMinWidth: 1900,
   wideMinAspectRatio: 1.9,
 }
 
+const lerp = (a, b, t) => a + (b - a) * t
+const WAVE_OPACITY_MULTIPLIER = 0.675
+const DARK_MODE_WAVE_OPACITY_FACTOR = 0.8
+const FRONT_WAVE_OPACITY_FACTOR = 0.5
+const WAVE_BLEND_EASING = 0.075
+const WAVE_BASE_CLEAR_ALPHA = 0.13
+const WAVE_TRANSITION_CLEAR_ALPHA = 0.24
+const WAVE_TIME_STEP = 0.01125
+
+function getWaveY(x, baseY, i, width, height, time) {
+  const dx = (x - width / 2) / width
+  const dy = (baseY - height / 2) / height
+
+  return baseY
+    + Math.sin(x * 0.008 + time * 0.7 + i * 0.3) * 30
+    + Math.sin(x * 0.003 - time * 0.4 + i * 0.1) * 50
+    + Math.cos(x * 0.012 + time * 1.1 + i * 0.5) * 15
+    + Math.sin(dx * 3 + time * 0.6) * Math.cos(dy * 2 + time * 0.3) * 40
+    + Math.sin(x * 0.02 + baseY * 0.01 + time * 1.5) * Math.cos(x * 0.015 - time * 0.8) * 20
+}
+
 function AnimatedBackground({ interactive = true }) {
   const { isDark } = useTheme()
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-  const [isThemeSwitching, setIsThemeSwitching] = useState(false)
   const [viewportTier, setViewportTier] = useState({ wide: false, small: false })
 
+  const waveCanvasRef = useRef(null)
+  const waveThemeTargetRef = useRef(isDark ? 1 : 0)
+  const waveBlendRef = useRef(isDark ? 1 : 0)
+  const waveTimeRef = useRef(0)
   const blobRefs = useRef([])
   const gridRefs = useRef([])
   const blobCentersRef = useRef(BLOB_LAYOUT.map(() => ({ x: 0, y: 0 })))
@@ -309,6 +372,7 @@ function AnimatedBackground({ interactive = true }) {
   const blobOffsetsRef = useRef(BLOB_LAYOUT.map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })))
   const gridOffsetsRef = useRef(GRID_DECOR_LAYOUT.map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })))
   const pointerRef = useRef({ x: 0, y: 0, active: false })
+  const pointerVelocityRef = useRef({ x: 0, y: 0 })
   const smoothedPointerRef = useRef({ x: 0, y: 0, ready: false })
   const rafRef = useRef(0)
 
@@ -321,12 +385,152 @@ function AnimatedBackground({ interactive = true }) {
   }, [])
 
   useEffect(() => {
-    setIsThemeSwitching(true)
-    const timer = window.setTimeout(() => {
-      setIsThemeSwitching(false)
-    }, THEME_FADE_MS + 120)
-    return () => window.clearTimeout(timer)
+    waveThemeTargetRef.current = isDark ? 1 : 0
   }, [isDark])
+
+  useEffect(() => {
+    const canvas = waveCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    let width = 0
+    let height = 0
+    let frame = 0
+
+    const resize = () => {
+      width = canvas.width = window.innerWidth
+      height = canvas.height = window.innerHeight
+    }
+
+    const draw = () => {
+      const targetBlend = waveThemeTargetRef.current
+      waveBlendRef.current += (targetBlend - waveBlendRef.current) * WAVE_BLEND_EASING
+      const blend = waveBlendRef.current
+      const modeOpacityScale = lerp(1, DARK_MODE_WAVE_OPACITY_FACTOR, blend)
+      const effectiveWaveOpacity = WAVE_OPACITY_MULTIPLIER * modeOpacityScale
+      const time = waveTimeRef.current
+
+      const transitionDelta = Math.abs(targetBlend - blend)
+      const clearAlpha = (
+        transitionDelta > 0.01 ? WAVE_TRANSITION_CLEAR_ALPHA : WAVE_BASE_CLEAR_ALPHA
+      ) * effectiveWaveOpacity
+      const bgValue = Math.round(lerp(240, 20, blend))
+      ctx.fillStyle = `rgba(${bgValue},${bgValue},${bgValue},${clearAlpha})`
+      ctx.fillRect(0, 0, width, height)
+
+      const lines = 55
+      const spacing = (height / lines) * 1.8
+
+      for (let i = 0; i < lines; i += 1) {
+        const baseY = -height * 0.3 + i * spacing
+        const phase = Math.abs(Math.sin(i * 0.12 + time * 0.5))
+        const isDotted = i % 2 === 0
+        const value = Math.round(lerp(170 + phase * 20, 40 + phase * 25, blend))
+        const alpha = lerp(0.068 + phase * 0.043, 0.15 + phase * 0.12, blend) * effectiveWaveOpacity
+
+        if (isDotted) {
+          ctx.fillStyle = `rgba(${value},${value},${value},${alpha})`
+          for (let x = 0; x <= width; x += 7) {
+            const y = getWaveY(x, baseY, i, width, height, time)
+            ctx.fillRect(x - 1, y - 1, 2, 2)
+          }
+        } else {
+          ctx.beginPath()
+          ctx.strokeStyle = `rgba(${value},${value},${value},${alpha})`
+          ctx.lineWidth = 1
+          for (let x = 0; x <= width; x += 4) {
+            const y = getWaveY(x, baseY, i, width, height, time)
+            if (x === 0) ctx.moveTo(x, y)
+            else ctx.lineTo(x, y)
+          }
+          ctx.stroke()
+        }
+      }
+
+      const bigLines = 12
+      const bigSpacing = (height / bigLines) * 2.5
+
+      for (let i = 0; i < bigLines; i += 1) {
+        const baseY = -height * 0.2 + i * bigSpacing
+        const phase = Math.abs(Math.sin(i * 0.09 + time * 0.3))
+        const isDotted = i % 3 === 0
+        const value = Math.round(lerp(175 + phase * 25, 50 + phase * 30, blend))
+        const alpha = lerp(0.24 + phase * 0.12, 0.2 + phase * 0.18, blend)
+          * effectiveWaveOpacity
+          * FRONT_WAVE_OPACITY_FACTOR
+
+        if (isDotted) {
+          ctx.fillStyle = `rgba(${value},${value},${value},${alpha})`
+          for (let x = 0; x <= width; x += 8) {
+            const y = baseY
+              + Math.sin(x * 0.003 + time * 0.4 + i * 0.5) * 70
+              + Math.cos(x * 0.006 - time * 0.25 + i * 0.2) * 40
+            ctx.fillRect(x - 1, y - 1, 2, 2)
+          }
+        } else {
+          ctx.beginPath()
+          ctx.strokeStyle = `rgba(${value},${value},${value},${alpha})`
+          ctx.lineWidth = 1.3
+          for (let x = 0; x <= width; x += 4) {
+            const y = baseY
+              + Math.sin(x * 0.003 + time * 0.4 + i * 0.5) * 70
+              + Math.cos(x * 0.006 - time * 0.25 + i * 0.2) * 40
+            if (x === 0) ctx.moveTo(x, y)
+            else ctx.lineTo(x, y)
+          }
+          ctx.stroke()
+        }
+      }
+
+      const glowLines = [
+        { yOff: 0.15, seed: 0 },
+        { yOff: 0.35, seed: 2 },
+        { yOff: 0.55, seed: 4 },
+        { yOff: 0.75, seed: 6 },
+        { yOff: 0.92, seed: 8 },
+      ]
+
+      for (const glowLine of glowLines) {
+        const pulse = Math.abs(Math.sin(time * 0.35 + glowLine.seed)) ** 2
+        const baseY = height * glowLine.yOff + Math.sin(time * 0.3 + glowLine.seed) * 40
+        const value = Math.round(lerp(145, 170, blend))
+        const glowAlpha = lerp(0.08 + 0.08 * pulse, 0.15 + 0.2 * pulse, blend) * effectiveWaveOpacity
+
+        ctx.beginPath()
+        ctx.strokeStyle = `rgba(${value},${value},${value},${glowAlpha})`
+        ctx.lineWidth = 1.2 + pulse * 0.5
+        const glowValue = Math.round(lerp(100, 255, blend))
+        ctx.shadowColor = `rgba(${glowValue},${glowValue},${glowValue},${glowAlpha * 0.5})`
+        ctx.shadowBlur = lerp(6, 12, blend)
+
+        for (let x = 0; x <= width; x += 4) {
+          const y = baseY
+            + Math.sin(x * 0.005 + time * 0.9 + glowLine.seed) * 55
+            + Math.cos(x * 0.01 - time * 0.6) * 30
+            + Math.sin(x * 0.018 + time * 1.2) * 18
+          if (x === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+        ctx.shadowBlur = 0
+      }
+
+      if (!prefersReducedMotion) {
+        waveTimeRef.current += WAVE_TIME_STEP
+      }
+      frame = window.requestAnimationFrame(draw)
+    }
+
+    resize()
+    window.addEventListener('resize', resize)
+    frame = window.requestAnimationFrame(draw)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', resize)
+    }
+  }, [prefersReducedMotion])
 
   useEffect(() => {
     const preloadedImages = PRELOAD_IMAGE_SOURCES.map((src) => {
@@ -413,6 +617,8 @@ function AnimatedBackground({ interactive = true }) {
 
     const resetOffsets = () => {
       pointerRef.current.active = false
+      pointerVelocityRef.current.x = 0
+      pointerVelocityRef.current.y = 0
       smoothedPointerRef.current.ready = false
       blobOffsetsRef.current.forEach((offset) => {
         offset.x = 0
@@ -429,7 +635,7 @@ function AnimatedBackground({ interactive = true }) {
       applyOffsets()
     }
 
-    if (prefersReducedMotion || isThemeSwitching || !interactive) {
+    if (prefersReducedMotion || !interactive) {
       resetOffsets()
       return
     }
@@ -444,23 +650,44 @@ function AnimatedBackground({ interactive = true }) {
     const onPointerLeave = () => {
       pointerRef.current.active = false
       smoothedPointerRef.current.ready = false
+      pointerVelocityRef.current.x = 0
+      pointerVelocityRef.current.y = 0
     }
 
     const tick = () => {
+      const now = performance.now()
       const pointer = pointerRef.current
+      const pointerVelocity = pointerVelocityRef.current
       const smoothedPointer = smoothedPointerRef.current
       if (pointer.active) {
         if (!smoothedPointer.ready) {
           smoothedPointer.x = pointer.x
           smoothedPointer.y = pointer.y
+          pointerVelocity.x = 0
+          pointerVelocity.y = 0
           smoothedPointer.ready = true
         } else {
-          smoothedPointer.x += (pointer.x - smoothedPointer.x) * POINTER_FOLLOW_EASING
-          smoothedPointer.y += (pointer.y - smoothedPointer.y) * POINTER_FOLLOW_EASING
+          const prevX = smoothedPointer.x
+          const prevY = smoothedPointer.y
+          smoothedPointer.x += (pointer.x - smoothedPointer.x) * INTERACTION.pointerFollowEasing
+          smoothedPointer.y += (pointer.y - smoothedPointer.y) * INTERACTION.pointerFollowEasing
+          pointerVelocity.x = pointerVelocity.x * INTERACTION.velocityRetention
+            + (smoothedPointer.x - prevX) * (1 - INTERACTION.velocityRetention)
+          pointerVelocity.y = pointerVelocity.y * INTERACTION.velocityRetention
+            + (smoothedPointer.y - prevY) * (1 - INTERACTION.velocityRetention)
         }
+      } else {
+        pointerVelocity.x *= INTERACTION.idleVelocityDecay
+        pointerVelocity.y *= INTERACTION.idleVelocityDecay
       }
 
-      const updateLayerMotion = (layout, centersRefValue, offsetsRefValue) => {
+      const updateLayerMotion = (
+        layout,
+        centersRefValue,
+        offsetsRefValue,
+        phaseSeedOffset = 0,
+        motionWeight = 1,
+      ) => {
         layout.forEach((item, index) => {
           const current = offsetsRefValue.current[index]
           const center = centersRefValue.current[index]
@@ -470,27 +697,46 @@ function AnimatedBackground({ interactive = true }) {
 
           let targetX = 0
           let targetY = 0
+          const wavePhase = now * INTERACTION.idleWaveSpeed + (index + 1) * 0.73 + phaseSeedOffset
+          const idleX = Math.sin(wavePhase) * item.strength * INTERACTION.idleAmplitude * motionWeight
+          const idleY = Math.cos(wavePhase * 0.86 + 1.17) * item.strength * INTERACTION.idleAmplitude * 0.9 * motionWeight
+          targetX += idleX
+          targetY += idleY
 
           if (pointer.active) {
             const dx = smoothedPointer.x - effectiveX
             const dy = smoothedPointer.y - effectiveY
             const distance = Math.hypot(dx, dy)
 
-            if (distance > 0 && distance < item.radius) {
+            if (distance > INTERACTION.innerDeadZone && distance < item.radius) {
+              const safeDistance = Math.max(distance, INTERACTION.minDistanceForForce)
               const intensity = 1 - distance / item.radius
-              const force = intensity * intensity * item.strength * FORCE_SCALE
-              targetX = (-dx / distance) * force
-              targetY = (-dy / distance) * force
+              const falloff = intensity ** INTERACTION.falloffPower
+              const force = falloff * item.strength * INTERACTION.forceScale * motionWeight
+              const normalX = -dx / safeDistance
+              const normalY = -dy / safeDistance
+              const swirlX = -dy / safeDistance
+              const swirlY = dx / safeDistance
+              targetX += normalX * force
+              targetY += normalY * force
+              targetX += swirlX * force * INTERACTION.swirlScale
+              targetY += swirlY * force * INTERACTION.swirlScale
+              targetX += pointerVelocity.x * falloff * INTERACTION.wakeScale
+              targetY += pointerVelocity.y * falloff * INTERACTION.wakeScale
             }
           }
 
-          const velocityX = (current.vx || 0) + (targetX - current.x) * SPRING_STIFFNESS
-          const velocityY = (current.vy || 0) + (targetY - current.y) * SPRING_STIFFNESS
-
-          current.vx = velocityX * SPRING_DAMPING
-          current.vy = velocityY * SPRING_DAMPING
-          current.x += current.vx
-          current.y += current.vy
+          const prevX = current.x
+          const prevY = current.y
+          current.x += (targetX - current.x) * INTERACTION.positionLerp
+          current.y += (targetY - current.y) * INTERACTION.positionLerp
+          current.vx = (current.vx || 0) * INTERACTION.springDamping
+            + (current.x - prevX) * (1 - INTERACTION.springDamping)
+          current.vy = (current.vy || 0) * INTERACTION.springDamping
+            + (current.y - prevY) * (1 - INTERACTION.springDamping)
+          const maxOffset = item.maxOffset || INTERACTION.maxOffset
+          current.x = Math.max(-maxOffset, Math.min(maxOffset, current.x))
+          current.y = Math.max(-maxOffset, Math.min(maxOffset, current.y))
 
           if (Math.abs(current.x) < 0.01) current.x = 0
           if (Math.abs(current.y) < 0.01) current.y = 0
@@ -499,8 +745,8 @@ function AnimatedBackground({ interactive = true }) {
         })
       }
 
-      updateLayerMotion(BLOB_LAYOUT, blobCentersRef, blobOffsetsRef)
-      updateLayerMotion(GRID_DECOR_LAYOUT, gridCentersRef, gridOffsetsRef)
+      updateLayerMotion(BLOB_LAYOUT, blobCentersRef, blobOffsetsRef, 0, INTERACTION.blobWeight)
+      updateLayerMotion(GRID_DECOR_LAYOUT, gridCentersRef, gridOffsetsRef, 1.4, INTERACTION.gridWeight)
 
       applyOffsets()
       rafRef.current = window.requestAnimationFrame(tick)
@@ -519,7 +765,7 @@ function AnimatedBackground({ interactive = true }) {
       window.removeEventListener('blur', onPointerLeave)
       resetOffsets()
     }
-  }, [prefersReducedMotion, isThemeSwitching, interactive])
+  }, [prefersReducedMotion, interactive])
 
   const resolvePlacement = (item) => {
     const anchor = viewportTier.small
@@ -544,38 +790,6 @@ function AnimatedBackground({ interactive = true }) {
   const themeFadeStyle = {
     transition: THEME_FADE_TRANSITION,
     willChange: 'opacity',
-  }
-
-  const ambientDarkLayerStyle = {
-    background: `
-      radial-gradient(1500px 980px at 50% 52%, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.78) 57%, rgba(0, 0, 0, 1) 100%),
-      radial-gradient(980px 700px at 50% 90%, rgba(0, 0, 0, 0.16) 0%, rgba(0, 0, 0, 0) 76%)
-    `,
-  }
-  const ambientLightLayerStyle = {
-    background: `
-      radial-gradient(1300px 800px at 50% 46%, rgba(255, 255, 255, 0.985) 0%, rgba(249, 252, 255, 0.93) 52%, rgba(239, 246, 255, 0.82) 100%),
-      radial-gradient(670px 450px at 16% 14%, rgba(165, 242, 255, 0.56) 0%, rgba(165, 242, 255, 0) 74%),
-      radial-gradient(700px 460px at 85% 18%, rgba(190, 202, 255, 0.5) 0%, rgba(190, 202, 255, 0) 72%),
-      radial-gradient(780px 560px at 84% 86%, rgba(160, 236, 245, 0.44) 0%, rgba(160, 236, 245, 0) 75%),
-      radial-gradient(730px 530px at 14% 86%, rgba(195, 206, 255, 0.42) 0%, rgba(195, 206, 255, 0) 74%)
-    `,
-  }
-  const centerWashDarkStyle = {
-    background:
-      'radial-gradient(58vw 44vh at 50% 50%, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.08) 56%, rgba(0, 0, 0, 0) 80%)',
-  }
-  const centerWashLightStyle = {
-    background:
-      'radial-gradient(60vw 44vh at 50% 50%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.56) 56%, rgba(255, 255, 255, 0) 80%)',
-  }
-  const vignetteDarkStyle = {
-    background:
-      'radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.74) 100%)',
-  }
-  const vignetteLightStyle = {
-    background:
-      'radial-gradient(circle at center, rgba(255, 255, 255, 0) 52%, rgba(203, 217, 244, 0.22) 100%)',
   }
 
   const renderGridItem = (item, index) => {
@@ -620,24 +834,14 @@ function AnimatedBackground({ interactive = true }) {
 
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none">
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: '#000000', opacity: isDark ? 1 : 0, ...themeFadeStyle }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: '#f9fbff', opacity: isDark ? 0 : 1, ...themeFadeStyle }}
-      />
-      <div className="absolute inset-0" style={{ ...ambientDarkLayerStyle, opacity: isDark ? 1 : 0, ...themeFadeStyle }} />
-      <div className="absolute inset-0" style={{ ...ambientLightLayerStyle, opacity: isDark ? 0 : 1, ...themeFadeStyle }} />
-      <div className="absolute inset-0" style={{ ...centerWashDarkStyle, opacity: isDark ? 1 : 0, ...themeFadeStyle }} />
-      <div className="absolute inset-0" style={{ ...centerWashLightStyle, opacity: isDark ? 0 : 1, ...themeFadeStyle }} />
+      <canvas ref={waveCanvasRef} className="absolute inset-0 h-full w-full" style={{ zIndex: 0 }} />
+      <div aria-hidden="true" className="wave-glass-layer" />
 
-      <div className="absolute inset-0" style={{ transform: `translate3d(${gridLayerShift}, 0, 0)` }}>
+      <div className="absolute inset-0" style={{ transform: `translate3d(${gridLayerShift}, 0, 0)`, zIndex: 2 }}>
         {underBlobGridItems.map(({ item, index }) => renderGridItem(item, index))}
       </div>
 
-      <div className="absolute inset-0" style={{ transform: `translate3d(${layerShift}, 0, 0)` }}>
+      <div className="absolute inset-0" style={{ transform: `translate3d(${layerShift}, 0, 0)`, zIndex: 3 }}>
         {BLOB_LAYOUT.map((blob, index) => {
           const darkSrc = BLOB_SOURCES.dark[blob.srcIndex]
           const lightSrc = BLOB_SOURCES.light[blob.srcIndex]
@@ -646,6 +850,8 @@ function AnimatedBackground({ interactive = true }) {
           const sy = (blob.flipY ? -1 : 1) * blob.scale
           const darkGlow = BLOB_DARK_GLOW[blob.srcIndex] || BLOB_DARK_GLOW[0]
           const lightGlow = BLOB_LIGHT_GLOW[blob.srcIndex] || BLOB_LIGHT_GLOW[0]
+          const darkOpacity = blob.darkOpacity ?? 0.96
+          const lightOpacity = blob.lightOpacity ?? 0.97
 
           return (
             <div
@@ -673,7 +879,7 @@ function AnimatedBackground({ interactive = true }) {
                   draggable={false}
                   className="absolute inset-0 h-full w-full object-contain"
                   style={{
-                    opacity: isDark ? 0.93 : 0,
+                    opacity: isDark ? darkOpacity : 0,
                     transition: THEME_FADE_TRANSITION,
                     willChange: 'opacity',
                     mixBlendMode: 'normal',
@@ -687,7 +893,7 @@ function AnimatedBackground({ interactive = true }) {
                   draggable={false}
                   className="absolute inset-0 h-full w-full object-contain"
                   style={{
-                    opacity: isDark ? 0 : 0.97,
+                    opacity: isDark ? 0 : lightOpacity,
                     transition: THEME_FADE_TRANSITION,
                     willChange: 'opacity',
                     mixBlendMode: 'normal',
@@ -702,12 +908,9 @@ function AnimatedBackground({ interactive = true }) {
         {blobStackGridItems.map(({ item, index }) => renderGridItem(item, index))}
       </div>
 
-      <div className="absolute inset-0" style={{ transform: `translate3d(${gridLayerShift}, 0, 0)` }}>
+      <div className="absolute inset-0" style={{ transform: `translate3d(${gridLayerShift}, 0, 0)`, zIndex: 4 }}>
         {overlayGridItems.map(({ item, index }) => renderGridItem(item, index))}
       </div>
-
-      <div className="absolute inset-0" style={{ ...vignetteDarkStyle, opacity: isDark ? 1 : 0, ...themeFadeStyle }} />
-      <div className="absolute inset-0" style={{ ...vignetteLightStyle, opacity: isDark ? 0 : 1, ...themeFadeStyle }} />
     </div>
   )
 }

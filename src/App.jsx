@@ -110,7 +110,7 @@ function App() {
   return (
     <div className="min-h-screen relative">
       {/* Animated Background */}
-      <AnimatedBackground interactive={stage === STAGES.LANDING} />
+      <AnimatedBackground interactive />
 
       {/* Glass backdrop for post-landing flow screens */}
       <div
