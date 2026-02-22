@@ -56,6 +56,7 @@ const BLOB_LAYOUT = [
     z: 1,
     radius: 420,
     strength: 18,
+    pointerBoost: 1.15,
   },
   {
     key: 'blob-2-right-sweep',
@@ -74,6 +75,7 @@ const BLOB_LAYOUT = [
     flipX: true,
     radius: 390,
     strength: 17,
+    pointerBoost: 0.85,
     darkOpacity: 0.98,
   },
   {
@@ -92,6 +94,7 @@ const BLOB_LAYOUT = [
     z: -1,
     radius: 420,
     strength: 20,
+    pointerBoost: 1.15,
   },
   {
     key: 'blob-4-top-right',
@@ -109,6 +112,7 @@ const BLOB_LAYOUT = [
     z: 1,
     radius: 420,
     strength: 19,
+    pointerBoost: 0.85,
   },
   {
     key: 'blob-7-right-mid',
@@ -126,6 +130,7 @@ const BLOB_LAYOUT = [
     z: 4,
     radius: 360,
     strength: 16,
+    pointerBoost: 0.85,
     darkOpacity: 0.98,
   },
   {
@@ -145,6 +150,7 @@ const BLOB_LAYOUT = [
     z: 2,
     radius: 420,
     strength: 21,
+    pointerBoost: 0.85,
     darkOpacity: 1,
   },
   {
@@ -155,7 +161,7 @@ const BLOB_LAYOUT = [
     anchorSmall: { top: '74vh', left: '-35vw' },
     size: {
       base: { w: 'clamp(420px, 42vw, 860px)', h: 'clamp(180px, 24vh, 360px)' },
-      wide: { w: 'clamp(470px, 46vw, 940px)', h: 'clamp(200px, 26vh, 400px)' },
+      wide: { w: 'clamp(470px, 46vw,s 940px)', h: 'clamp(200px, 26vh, 400px)' },
       small: { w: 'clamp(340px, 70vw, 640px)', h: 'clamp(150px, 18vh, 300px)' },
     },
     rotate: 0,
@@ -164,6 +170,7 @@ const BLOB_LAYOUT = [
     radius: 320,
     strength: 11,
     flipX: true,
+    pointerBoost: 1.5,
 
   },
 ]
@@ -712,7 +719,8 @@ function AnimatedBackground({ interactive = true }) {
               const safeDistance = Math.max(distance, INTERACTION.minDistanceForForce)
               const intensity = 1 - distance / item.radius
               const falloff = intensity ** INTERACTION.falloffPower
-              const force = falloff * item.strength * INTERACTION.forceScale * motionWeight
+              const pointerBoost = item.pointerBoost ?? 1
+              const force = falloff * item.strength * INTERACTION.forceScale * motionWeight * pointerBoost
               const normalX = -dx / safeDistance
               const normalY = -dy / safeDistance
               const swirlX = -dy / safeDistance
@@ -721,8 +729,8 @@ function AnimatedBackground({ interactive = true }) {
               targetY += normalY * force
               targetX += swirlX * force * INTERACTION.swirlScale
               targetY += swirlY * force * INTERACTION.swirlScale
-              targetX += pointerVelocity.x * falloff * INTERACTION.wakeScale
-              targetY += pointerVelocity.y * falloff * INTERACTION.wakeScale
+              targetX += pointerVelocity.x * falloff * INTERACTION.wakeScale * pointerBoost
+              targetY += pointerVelocity.y * falloff * INTERACTION.wakeScale * pointerBoost
             }
           }
 

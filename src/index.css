@@ -296,12 +296,67 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
-  min-height: var(--app-height);
+html,
+body,
+#root {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
+}
+
+body {
+  min-height: var(--app-height);
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.42s cubic-bezier(0.22, 1, 0.36, 1), color 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html.theme-switching body,
+html.theme-switching #root,
+html.theme-switching main,
+html.theme-switching button,
+html.theme-switching input,
+html.theme-switching textarea,
+html.theme-switching select,
+html.theme-switching .glass,
+html.theme-switching .glass-card,
+html.theme-switching .glass-subtle,
+html.theme-switching .layout-glass-card,
+html.theme-switching .layout-glass-card-sheen,
+html.theme-switching .flow-glass-layer,
+html.theme-switching .flow-glass-layer::before,
+html.theme-switching .flow-glass-layer::after,
+html.theme-switching .wave-glass-layer {
+  transition-property: background-color, color, border-color, outline-color, text-decoration-color, fill, stroke, box-shadow;
+  transition-duration: 0.42s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-switching body,
+  html.theme-switching #root,
+  html.theme-switching main,
+  html.theme-switching button,
+  html.theme-switching input,
+  html.theme-switching textarea,
+  html.theme-switching select,
+  html.theme-switching .glass,
+  html.theme-switching .glass-card,
+  html.theme-switching .glass-subtle,
+  html.theme-switching .layout-glass-card,
+  html.theme-switching .layout-glass-card-sheen,
+  html.theme-switching .flow-glass-layer,
+  html.theme-switching .flow-glass-layer::before,
+  html.theme-switching .flow-glass-layer::after,
+  html.theme-switching .wave-glass-layer {
+    transition-duration: 0s !important;
+  }
+}
+
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.42s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 .min-h-screen {
@@ -318,7 +373,7 @@ body {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.50;
+  opacity: 0.55;
   background:
     linear-gradient(
       160deg,

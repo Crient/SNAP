@@ -42,6 +42,7 @@ const SOLID_COLOR_CATEGORIES = {
 }
 
 const PREVIEW_CARD_RADIUS_PX = 8
+const PATTERN_TILE_WIDTH_RATIO = 0.6
 
 // Solid color options (43 curated colors, no PNG assets)
 // Order: Neutrals → Warm Pastels → Cool Pastels → Brights → Rich/Bold → Dark
@@ -787,48 +788,61 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         className="absolute inset-0 bg-black/45 backdrop-blur-sm"
         onClick={handleResetCancel}
       />
-      <div className="relative z-10 w-80">
-        <div className="reminder-modal relative rounded-3xl px-2 py-10 shadow-2xl border border-[var(--color-border)] overflow-hidden text-center"
-        style={{width: "100%"}}>
-          <p
-            className="text-[30px] font-extrabold uppercase"
-            style={{ color: 'var(--color-brand-primary)', paddingTop: "10px"}}
-          >
-            Start Over?
-          </p>
-            <hr
-                aria-hidden="true"
-                className="mx-auto border-0"
-                style={{
-                  width: "70%",
-                  height: "1.5px",
-                  margin: "0 auto 14px",
-                  background:
-                    "linear-gradient(90deg, transparent, var(--divider-line, rgba(0,0,0,0.35)), transparent)",
-                  opacity: 1,
-                }}
-              />
-          <p className="mt-4 text-sm font-semibold text-[var(--color-text-secondary)] leading-6"
-          style={{marginBottom:"20px"}}>
+      <div className="glass relative max-w-md w-full rounded-[30px] border border-[var(--color-border)] px-6 py-7 md:px-8 md:py-8 text-center shadow-2xl">
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-brand-primary)]/55 to-transparent pointer-events-none" />
+        <div className="mt-2 mb-4 flex justify-center">
+          <div className="h-14 w-14 rounded-2xl border border-[var(--color-border)] bg-[var(--toggle-bg)] flex items-center justify-center"
+          style={{marginTop:"20px", marginBottom:"10px"}}>
+            <svg
+              viewBox="0 0 24 24"
+              width="26"
+              height="26"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-[var(--color-brand-primary)]"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M6 6l1 14h10l1-14" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+            </svg>
+          </div>
+        </div>
+        <h3 className="text-center text-[26px] leading-[1] font-extrabold tracking-[-0.01em] text-[var(--color-brand-primary)]"
+        style={{marginTop:"10px", marginBottom:"10px"}}>
+          Start Over?
+        </h3>
+        <div className="mt-3 flex justify-center">
+          <p className="w-full max-w-[32ch] text-center text-[13px] font-semibold leading-[1.45] text-[var(--color-text-secondary)]"
+          style={{marginBottom: "20px"}}>
             This will clear your current edits.
           </p>
-          <div className="mt-6 flex flex gap-2"
-          style={{marginBottom: "15px", paddingLeft: "10px", paddingRight: "10px"}}>
-            <button
-              type="button"
-              onClick={handleResetCancel}
-              className="flex-1 w-20 h-10  rounded-2xl glass text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleResetConfirm}
-              className="flex-1 h-10  w-20 ml-2 rounded-2xl btn-primary text-white font-bold text-sm"
-            >
-              Start Over
-            </button>
-          </div>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-3"
+         style={{marginBottom: "20px", marginTop: "-10px"}}>
+          <button
+            type="button"
+            onClick={handleResetCancel}
+            className="h-9 rounded-2xl border border-[var(--color-border)] bg-[var(--toggle-bg)] text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+             style={{marginLeft: '25px'}}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleResetConfirm}
+            className="h-9 rounded-2xl text-[12px] font-bold text-white transition-all duration-300 hover:-translate-y-[1px] active:translate-y-0"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-secondary) 100%)',
+              boxShadow: '0 8px 20px rgba(184, 0, 31, 0.22)',
+               marginRight: '25px'
+            }}
+          >
+            Start Over
+          </button>
         </div>
       </div>
     </div>
@@ -1313,19 +1327,23 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     }
     const containerBox = container.getBoundingClientRect()
     const elBox = elementEl.getBoundingClientRect()
-    const x = elBox.left - containerBox.left + elBox.width / 2
-    const y = Math.max(12, elBox.top - containerBox.top - 8)
+    const baseWidth = container.clientWidth || containerBox.width || 1
+    const baseHeight = container.clientHeight || containerBox.height || 1
+    const scaleX = containerBox.width / baseWidth || 1
+    const scaleY = containerBox.height / baseHeight || 1
+    const x = (elBox.left - containerBox.left + elBox.width / 2) / scaleX
+    const y = Math.max(12, (elBox.top - containerBox.top - 8) / scaleY)
     setToolbarPosition({ x, y })
 
     const handleX = clamp(
-      elBox.right - containerBox.left + ROTATE_HANDLE_OFFSET_PX,
+      (elBox.right - containerBox.left + ROTATE_HANDLE_OFFSET_PX) / scaleX,
       12,
-      containerBox.width - 12
+      baseWidth - 12
     )
     const handleY = clamp(
-      elBox.top - containerBox.top + elBox.height / 2,
+      (elBox.top - containerBox.top + elBox.height / 2) / scaleY,
       12,
-      containerBox.height - 12
+      baseHeight - 12
     )
     setRotationHandlePosition({ x: handleX, y: handleY })
   }, [selectedElementId])
@@ -1478,10 +1496,14 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
         backgroundRepeat: 'no-repeat',
       }
     } else {
+      const previewWidth = containerRect?.width || 0
+      const tileSize = previewWidth > 0
+        ? Math.max(48, previewWidth * PATTERN_TILE_WIDTH_RATIO)
+        : 240
       return {
         backgroundImage: `url(${loadedBgUrl})`,
         backgroundRepeat: 'repeat',
-        backgroundSize: '240px 240px', // Pattern tile size
+        backgroundSize: `${tileSize}px ${tileSize}px`,
       }
     }
   }
@@ -1650,11 +1672,11 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             // Scene: cover behavior
             drawImageCover(ctx, bgImg, 0, 0, canvasWidth, canvasHeight)
           } else {
-            // Pattern: repeat/tile at 240px (matching preview)
+            // Pattern: keep tile density locked to canvas width (same as live preview)
             const pattern = ctx.createPattern(bgImg, 'repeat')
             ctx.save()
-            // Scale pattern to match 240px preview tile size
-            const scaleFactor = 240 / bgImg.width * (canvasWidth / 400) // Adjust for canvas size
+            const targetTileSize = canvasWidth * PATTERN_TILE_WIDTH_RATIO
+            const scaleFactor = targetTileSize / bgImg.width
             ctx.scale(scaleFactor, scaleFactor)
             ctx.fillStyle = pattern
             ctx.fillRect(0, 0, canvasWidth / scaleFactor, canvasHeight / scaleFactor)
@@ -2217,16 +2239,13 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
     setSheetSnapIndex(prev => prev === 0 ? 1 : 0)
   }
   
-  // Calculate dynamic canvas size based on sheet position
-  // Sheet collapsed = bigger canvas, Sheet half = medium canvas
-  // Sheet expanded (max) = canvas stays at "half" size and sits BEHIND the sheet
+  // Keep mobile canvas fixed to the half-sheet reference.
+  // This keeps composition consistent across sheet states and with export output.
   const getCanvasSizeForSheet = () => {
     if (!isMobile) return { width: canvasWidth, height: canvasHeight }
     
-    // For max expansion (index 2), use the "half" snap point so canvas doesn't shrink
-    // This allows the canvas to sit behind the sheet at max expansion
-    const effectiveSnapIndex = sheetSnapIndex === 2 ? 1 : sheetSnapIndex
-    const sheetHeightVh = snapPoints[effectiveSnapIndex]
+    const fixedReferenceSnapIndex = 1
+    const sheetHeightVh = snapPoints[fixedReferenceSnapIndex]
     
     // Calculate available height:
     // 100vh - sheet height - header (~50px) - margin top (10px) - margin bottom (10px)
@@ -2243,18 +2262,37 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
       h = maxHeight
       w = Math.round(h * canvasAspect)
     }
-    
+
     return { width: w, height: h }
   }
   
   const dynamicCanvasSize = getCanvasSizeForSheet()
+  const mobileCanvasVisualScale = (() => {
+    if (!isMobile) return 1
+    const fixedReferenceSnapIndex = 1
+    const referenceSnapVh = snapPoints[fixedReferenceSnapIndex]
+    const minSnapVh = snapPoints[0]
+    const referenceRange = Math.max(1, referenceSnapVh - minSnapVh)
+    const downProgress = clamp((referenceSnapVh - currentSnapHeight) / referenceRange, 0, 1)
+    if (downProgress <= 0) return 1
+
+    const currentSheetHeightPx = (windowHeight * currentSnapHeight) / 100
+    const headerAndMarginsPx = isVertical ? 70 : 85
+    const availableHeightPx = Math.max(1, windowHeight - currentSheetHeightPx - headerAndMarginsPx)
+    const availableWidthPx = Math.max(1, windowWidth - 24)
+    const fitScale = Math.max(1, Math.min(
+      availableWidthPx / dynamicCanvasSize.width,
+      availableHeightPx / dynamicCanvasSize.height
+    ))
+    return 1 + ((fitScale - 1) * downProgress)
+  })()
 
   useEffect(() => {
     const updateRect = () => {
       const el = canvasContainerRef.current
       if (!el) return
-      const rect = el.getBoundingClientRect()
-      setContainerRect({ width: rect.width, height: rect.height })
+      // Use layout size (not transformed visual size) so composition math stays stable.
+      setContainerRect({ width: el.clientWidth, height: el.clientHeight })
       setCanvasEl(el)
     }
 
@@ -2290,16 +2328,19 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
             </p>
           </div>
           
-          {/* Canvas - size CHANGES based on sheet position */}
+          {/* Canvas - fixed composition, with whole-strip visual scale when sheet is lowered */}
           <div 
             ref={canvasWrapperRef}
-            className={`flex-shrink-0 ${isLoaded ? 'scale-in' : 'opacity-0'}`}
+            className="flex-shrink-0"
             style={{
               width: `${dynamicCanvasSize.width}px`,
               height: `${dynamicCanvasSize.height}px`,
               maxWidth: 'calc(100% - 16px)',
               marginBottom: '10px', // breathing room between canvas and bottom sheet
-              transition: 'width 0.3s ease-out, height 0.3s ease-out',
+              opacity: isLoaded ? 1 : 0,
+              transform: `scale(${mobileCanvasVisualScale})`,
+              transformOrigin: 'center top',
+              transition: 'width 0.3s ease-out, height 0.3s ease-out, transform 0.3s ease-out, opacity 0.2s ease-out',
             }}
           >
             <div
@@ -2445,14 +2486,21 @@ function Editor({ photos, layout, orientation, onComplete, onReset }) {
               transition: isDragging ? 'none' : 'height 0.3s ease-out',
             }}
           >
-            {/* Drag handle - supports drag and tap */}
-            <div 
-              className="flex justify-center pt-8 pb-3 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-              onMouseDown={handleDragStart}
-              onTouchStart={handleDragStart}
-              onClick={handleGrabTap}
+            {/* Clean handle UI with tighter spacing and a large invisible hit area */}
+            <div
+              className="relative w-full flex items-center justify-center flex-shrink-0"
+              style={{ paddingTop: '8px'}}
             >
-              <div className="w-12 h-1.5 bg-[var(--color-text-muted)] rounded-full opacity-50" />
+              <button
+                type="button"
+                className="absolute left-0 right-0 p-0 m-0 border-0 bg-transparent cursor-grab active:cursor-grabbing touch-none"
+                style={{ top: '50%', transform: 'translateY(-50%)', height: '42px' }}
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+                onClick={handleGrabTap}
+                aria-label="Resize panel"
+              />
+              <div className="w-16 h-2 bg-[var(--color-text-muted)] rounded-full opacity-50 pointer-events-none" />
             </div>
             
             {renderPanelContent(true)}

@@ -235,25 +235,58 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="glass rounded-3xl max-w-md w-full text-center px-8 py-12 md:px-10 md:py-14 space-y-5">
-          <div className="text-6xl">😢</div>
-          <h2 className="text-2xl font-bold">Camera Access Denied</h2>
-          <p className="text-[var(--color-text-secondary)] font-medium leading-relaxed">
-            {error}
-          </p>
-          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
-            <button
-              onClick={() => startCamera()}
-              className="px-6 py-3 rounded-xl bg-[#B8001F]/15 hover:bg-[#B8001F]/25 text-[#B8001F] transition-colors font-semibold"
-            >
-              Try Again
-            </button>
-            <button
-              onClick={onBack}
-              className="px-6 py-3 rounded-xl glass hover:bg-[var(--color-surface)] transition-colors font-semibold"
-            >
-              Go Back
-            </button>
+        <div className="glass relative max-w-md w-full rounded-[30px] border border-[var(--color-border)] px-6 py-7 md:px-8 md:py-8 text-center shadow-2xl">
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-brand-primary)]/55 to-transparent pointer-events-none" />
+          <div className="mt-2 mb-5 flex justify-center">
+            <div className="h-14 w-14 rounded-2xl border border-[var(--color-border)] bg-[var(--toggle-bg)] flex items-center justify-center"                 
+            style={{marginTop:"20px", marginBottom:"10px"}}>
+              
+              <svg
+                viewBox="0 0 24 24"
+                width="26"
+                height="26"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-[var(--color-brand-primary)]"
+                aria-hidden="true"
+
+              >
+                <path d="M4 7h3l2-2h6l2 2h3v11H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+                <path d="M4 4l16 16" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-center text-[26px] leading-[1] font-extrabold tracking-[-0.01em] text-[var(--color-text-primary)]"
+          style={{marginTop:"10px", marginBottom:"10px"}}>
+            Camera Access Denied
+          </h2>
+          <div className="mt-4 flex justify-center">
+            <p className="w-full max-w-[32ch] text-center text-[13px] font-semibold leading-[1.45] text-[var(--color-text-secondary)]">
+              {error}
+            </p>
+          </div>
+          <div className="mt-7 grid grid-cols-2 gap-4 px-1"
+          style={{marginBottom: "20px", marginTop: "10px"}}>
+              <button
+                onClick={() => startCamera()}
+                className="h-9 rounded-2xl text-[12px] font-bold text-white transition-all duration-300 hover:-translate-y-[1px] active:translate-y-0"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-secondary) 100%)',
+                  boxShadow: '0 8px 20px rgba(184, 0, 31, 0.22)',
+                  marginLeft: '25px',
+                }}
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onBack}
+                className="h-9 rounded-2xl border border-[var(--color-border)] bg-[var(--toggle-bg)] text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                style={{marginRight: '25px'}}
+              >
+                Go Back
+              </button>
           </div>
         </div>
       </div>
@@ -468,47 +501,42 @@ function PhotoBooth({ layout, orientation, onComplete, onBack }) {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowCameraReminder(false)}
           />
-          <div className="relative z-10 max-w-sm w-full">
-            <div className="reminder-modal relative rounded-3xl px-6 py-7 shadow-2xl border border-[var(--color-border)] overflow-hidden text-center">
-                <button
-                  aria-label="Close reminder"
-                  onClick={() => setShowCameraReminder(false)}
-                  className="absolute top-2 right-3 h-6 w-6 rounded-full bg-red-400 text-white font-bold shadow-lg flex items-center justify-center"
+          <div className="glass relative max-w-sm w-full rounded-[30px] border border-[var(--color-border)] px-6 py-7 text-center shadow-2xl">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-brand-primary)]/55 to-transparent pointer-events-none" />
+            <button
+              aria-label="Close reminder"
+              onClick={() => setShowCameraReminder(false)}
+              className="absolute top-3 right-3 h-6 w-6 rounded-full bg-red-400 text-white font-bold shadow-lg flex items-center justify-center"
+            >
+              ×
+            </button>
+            <div className="mt-2 mb-4 flex justify-center">
+              <div className="h-14 w-14 rounded-2xl border border-[var(--color-border)] bg-[var(--toggle-bg)] flex items-center justify-center"
+              style={{marginTop:"20px", marginBottom:"10px"}}>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="26"
+                  height="26"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-[var(--color-brand-primary)]"
+                  aria-hidden="true"
                 >
-                ×
-              </button>
-              <p
-                className="text-2xl font-extrabold uppercase tracking-[0.12em]"
-                style={{
-                  paddingTop: "22px",
-                  paddingBottom: "6px",
-                  color: "var(--color-brand-primary)",
-                }}
-              >
-                Quick reminder
-              </p>
-              <hr
-                aria-hidden="true"
-                className="mx-auto border-0"
-                style={{
-                  width: "70%",
-                  height: "1.5px",
-                  margin: "0 auto 14px",
-                  background:
-                    "linear-gradient(90deg, transparent, var(--divider-line, rgba(0,0,0,0.35)), transparent)",
-                  opacity: 1,
-                }}
-              />
-              <p
-                className="text-md font-semibold text-[var(--color-text-primary)]"
-                style={{
-                  letterSpacing: "0.08em",
-                  lineHeight: "1.6",
-                  paddingBottom: "22px",
-                }}
-              >
-                Clean your camera <br />
-                before we start :)
+                  <path d="M4 7h3l2-2h6l2 2h3v11H4z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                  <path d="M19 3l.8 1.6L21.5 5l-1.7.4L19 7l-.8-1.6L16.5 5l1.7-.4z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-center text-[26px] leading-[1] font-extrabold tracking-[-0.01em] text-[var(--color-brand-primary)]"
+            style={{marginTop:"10px", marginBottom:"10px"}}>
+              Quick Reminder
+            </h3>
+            <div className="mt-3 flex justify-center">
+              <p className="w-full max-w-[32ch] text-center text-[13px] font-semibold leading-[1.45] text-[var(--color-text-primary)]"
+               style={{marginBottom: "25px", marginTop: "-5px"}}>
+                Don&apos;t forget to clean your camera before we start.
               </p>
             </div>
           </div>

@@ -1,6 +1,8 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, createContext, useContext, useRef, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 
 const ThemeContext = createContext(null)
+const THEME_SWITCH_DURATION_MS = 420
 
 export function ThemeProvider({ children }) {
   // Default to light mode
@@ -15,6 +17,42 @@ export function ThemeProvider({ children }) {
     // Default to light
     return false
   })
+  const themeSwitchTimeoutRef = useRef(null)
+
+  const beginThemeSwitch = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const root = document.documentElement
+    root.classList.add('theme-switching')
+    if (themeSwitchTimeoutRef.current) {
+      window.clearTimeout(themeSwitchTimeoutRef.current)
+    }
+    themeSwitchTimeoutRef.current = window.setTimeout(() => {
+      root.classList.remove('theme-switching')
+      themeSwitchTimeoutRef.current = null
+    }, THEME_SWITCH_DURATION_MS)
+  }, [])
+
+  const applyThemeState = useCallback((nextStateUpdater) => {
+    if (typeof window === 'undefined') {
+      setIsDark(nextStateUpdater)
+      return
+    }
+
+    const canUseViewTransition = typeof document.startViewTransition === 'function'
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (canUseViewTransition) {
+      document.startViewTransition(() => {
+        flushSync(() => {
+          setIsDark(nextStateUpdater)
+        })
+      })
+      return
+    }
+
+    beginThemeSwitch()
+    setIsDark(nextStateUpdater)
+  }, [beginThemeSwitch])
 
   // Apply theme class to document
   useEffect(() => {
@@ -24,13 +62,29 @@ export function ThemeProvider({ children }) {
     } else {
       root.classList.remove('dark')
     }
+    root.style.colorScheme = isDark ? 'dark' : 'light'
     // Persist preference
     localStorage.setItem('snap-theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
-  const toggleTheme = () => setIsDark(prev => !prev)
-  const setDarkMode = () => setIsDark(true)
-  const setLightMode = () => setIsDark(false)
+  useEffect(() => () => {
+    if (themeSwitchTimeoutRef.current) {
+      window.clearTimeout(themeSwitchTimeoutRef.current)
+    }
+    document.documentElement.classList.remove('theme-switching')
+  }, [])
+
+  const toggleTheme = useCallback(() => {
+    applyThemeState(prev => !prev)
+  }, [applyThemeState])
+
+  const setDarkMode = useCallback(() => {
+    applyThemeState(() => true)
+  }, [applyThemeState])
+
+  const setLightMode = useCallback(() => {
+    applyThemeState(() => false)
+  }, [applyThemeState])
 
   return (
     <ThemeContext.Provider value={{ isDark, toggleTheme, setDarkMode, setLightMode }}>
