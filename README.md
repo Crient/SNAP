@@ -15,13 +15,16 @@ SNAP is an in-browser digital photobooth that captures multi-shot layouts, lets 
 ### Edit
 - Canvas-based preview matching final export dimensions
 - Solid, scene, and pattern backgrounds
-- Sticker library with drag, rotate, resize, and delete controls
+- Sticker library with 170 stickers, drag/rotate/resize controls, lock/duplicate/delete actions
+- 125 backgrounds (solid, scene, and pattern) with category-based browsing
+- Frame editing with hide/show, drag-to-swap, and undo/redo
 - Responsive editor with mobile-friendly layout
 
 ### Export & Experience
-- High-resolution PNG export
+- High-resolution PNG export (HD and QHD presets)
 - Dark mode with persisted preference
 - Animated gradient background and glassmorphic theming
+- Route-level lazy loading, thumbnail lazy loading, and compressed asset pipeline
 - Fully client-side processing
 
 ---
@@ -88,7 +91,8 @@ public/assets/
 └── elements/
 
 scripts/
-└── compress-images.js
+├── compress-images.js
+└── generate-thumbs.js
 
 vite.config.js
 ```
@@ -112,12 +116,13 @@ Local persistence is limited to:
 - Theme preference (localStorage)
 - One-time camera reminder flag (sessionStorage)
 
-No analytics, tracking, or network requests are performed.
+No analytics or tracking are included, and photos are never uploaded.
+Network requests are limited to loading app assets/dependencies.
 
 ---
 
 ## Future Work
 - Text tool with font and color controls
-- Additional export presets and quality options
+- Additional export presets beyond HD/QHD
 - Session persistence for re-editing
 - Multi-camera and input source selection
