@@ -129,6 +129,8 @@ Network requests are limited to loading app assets/dependencies.
 
 ## Free Cloudflare migration preview
 
+This is a temporary preview while the Vercel team is disabled. The owner's permanent hosting choice is Vercel, preserving `snapdigital.vercel.app`, its project and existing GitHub integration.
+
 The `hosting/free-cloudflare-preview-20261026` branch starts at deployed commit `23dc8ba74cd3a2b8a04abdd1fc569447ebef874b`. Application source and all camera/export behavior are unchanged.
 
 Run `npm ci --ignore-scripts`, `npm run build:cloudflare`, and `npm run check:cloudflare`. The build has 659 assets; its largest file is 14,451,847 bytes, within Pages Free's 25 MiB per-file / 20,000-file limits. No Functions, storage subscriptions or backend secrets are needed. The synthetic-camera browser check exports a valid 1440×2560 PNG.
