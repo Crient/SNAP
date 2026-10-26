@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "hosting/free-cloudflare-preview-20261026": false
+    }
+  }
+}

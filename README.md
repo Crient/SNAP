@@ -126,3 +126,13 @@ Network requests are limited to loading app assets/dependencies.
 - Additional export presets beyond HD/QHD
 - Session persistence for re-editing
 - Multi-camera and input source selection
+
+## Free Cloudflare migration preview
+
+The `hosting/free-cloudflare-preview-20261026` branch starts at deployed commit `23dc8ba74cd3a2b8a04abdd1fc569447ebef874b`. Application source and all camera/export behavior are unchanged.
+
+Run `npm ci --ignore-scripts`, `npm run build:cloudflare`, and `npm run check:cloudflare`. The build has 659 assets; its largest file is 14,451,847 bytes, within Pages Free's 25 MiB per-file / 20,000-file limits. No Functions, storage subscriptions or backend secrets are needed. The synthetic-camera browser check exports a valid 1440×2560 PNG.
+
+The separate Pages project is `leng-snap-preview-20261026`, with reserved production branch `owner-approved-production`. `CLOUDFLARE_ACCOUNT_ID=07f48608f6c0c2e51553c6f0d53418ea npm run deploy:cloudflare-preview` always publishes branch `migration-20261026`, not production. Keep the resulting preview URL separate from `snapdigital.vercel.app`; no existing project or domain changes. Free-plan limits can stop builds/requests but no paid plan is activated here.
+
+Cloudflare references: https://developers.cloudflare.com/pages/platform/limits/ and https://developers.cloudflare.com/pages/configuration/preview-deployments/ .
